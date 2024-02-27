@@ -2,6 +2,26 @@
 
 Notes and commands taken from lectures and exercises.
 
+<!-- toc -->
+
+- [Set up VNC Container](#set-up-vnc-container)
+- [Exercises](#exercises)
+  - [Week 2 exercise](#week-2-exercise)
+  - [Week 3 exercise](#week-3-exercise)
+  - [Week 4 Exercise](#week-4-exercise)
+  - [Week 5 Exercise](#week-5-exercise)
+- [ROS2 Concepts](#ros2-concepts)
+  - [ros nodes](#ros-nodes)
+  - [ros topics](#ros-topics)
+  - [ros services](#ros-services)
+  - [ros actions](#ros-actions)
+  - [ros parameters](#ros-parameters)
+  - [rqt_console](#rqt_console)
+  - [ros packages](#ros-packages)
+  - [ros workspace](#ros-workspace)
+
+<!-- tocstop -->
+
 ## Set up VNC Container
 
 ```bash
