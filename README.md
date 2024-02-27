@@ -12,6 +12,118 @@ docker run -p 6080:80 --security-opt seccomp=unconfined --shm-size=512m tiryoh/r
 
 Go to  `localhost:6080`, password: `ubuntu`
 
+## Exercises
+
+### Week 2 exercise
+
+```bash
+ros2 run turtlesim turtlesim_node
+
+ros2 service call /kill turtlesim/srv/Kill "{name: turtle1}"
+ros2 service call /spawn turtlesim/srv/Spawn "{x: 6, y: 3, theta: 0., name: 'T63'}"
+ros2 run turtlesim turtle_teleop_key --ros-args --remap turtle1/cmd_vel:=T63/cmd_vel
+ros2 bag -o bag1 record /T63/cmd_vel
+ros2 bag play bag1
+ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{theta: 0.5}"
+```
+
+### Week 3 exercise
+
+ROS node to spawn 10 turtles and move them in circles.
+
+```bash
+ros2 run turtlesim turtlesim_node
+ros2 run my_turtlebot turtle_circles
+```
+
+Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan.
+
+```bash
+sudo apt install ros-$ROS_DISTRO-nav2-bringup ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-turtlebot3-gazebo ros-$ROS_DISTRO-turtlebot3*
+
+cd autonomy_ws
+source install/setup.bash
+export ROS_DOMAIN_ID=11
+export TURTLEBOT3_MODEL=burger
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
+
+ros2 launch my_turtlebot turtlebot_simulation.launch.py
+# In RViz, select '2D Pose Estimate and click towards +x (red line)'
+
+ros2 run my_turtlebot lidar_sub
+```
+
+TF2 broadcaster tutorial from [here](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-TF2.html)
+
+```bash
+sudo apt-get install ros-humble-rviz2 ros-humble-turtle-tf2-py ros-humble-tf2-ros ros-humble-tf2-tools ros-humble-turtlesim
+
+ros2 pkg create --build-type ament_python tf_broadcaster --dependencies tf2_ros rclpy
+pip3 install scipy
+
+# Set up simulation, spawn turtle1
+ros2 run turtlesim turtlesim_node
+ros2 run turtlesim turtle_teleop_key
+
+# Broadtcast turtle1
+ros2 run tf_broadcaster broadcaster turtle1  
+ros2 run tf2_ros tf2_echo turtle1 world
+
+# Spawn and broadcast turtle2
+ros2 service call /spawn turtlesim/srv/Spawn "{x: 2, y: 2, theta: 0.2, name: "turtle2"}"
+ros2 run tf_broadcaster broadcaster turtle2
+
+# Make turtle2 follow turtle1
+ros2 run tf_broadcaster listener turtle1 turtle2
+```
+
+### Week 4 Exercise
+
+Task: Create a localization ROS node for your turtlebot
+
+- Use the LIDAR scanner
+- Assume a constant velocity model
+- Publish a TF with the result of your odometry
+- Compare with the one provided by ROS
+
+**Commands** </br>
+Re-run commands from week 3 to start the simulation and obtain LIDAR scans.
+
+LIDAR Localization
+
+```bash
+ros2 launch my_turtlebot turtlebot_simulation.launch.py
+# In RViz, select '2D Pose Estimate and click towards +x (red line)'
+
+ros2 run my_turtlebot lidar_localization
+ros2 run my_turtlebot lidar_localization --ros-args --log-level debug
+
+# To move turtlebot and run lidar_localization,
+ros2 launch my_turtlebot turtlebot_localization.launch.py
+```
+
+### Week 5 Exercise
+
+Publishing a map
+
+- Create a 2D occupancy grid using a 2D matrix
+- Fill random cells in the matrix with the value 100 and the rest with 0
+- Create an OccupancyGrid message and fill in the information (along with your map)
+- Publish the map on the topic /map with a frequency of 0.5Hz
+- Remember to add a transform that the map can live in (either static or dynamic)
+
+Overlaying laser scans
+
+- Create an empty 2D map
+- Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
+- Add them to your internal map representation
+- Publish the updated map
+
+Moving the laser scan around in the map
+
+- Use the odometry you developed last time to move the pointcloud as the robot moves
+
 ## ROS2 Concepts
 
 ### ros nodes
@@ -147,115 +259,3 @@ source install/local_setup.bash
 - `~/ros2_ws$ source install/setup.bash`
 
 - `source /opt/ros/humnle/setup.bash`
-
-## Exercises
-
-### Week 2 exercise
-
-```bash
-ros2 run turtlesim turtlesim_node
-
-ros2 service call /kill turtlesim/srv/Kill "{name: turtle1}"
-ros2 service call /spawn turtlesim/srv/Spawn "{x: 6, y: 3, theta: 0., name: 'T63'}"
-ros2 run turtlesim turtle_teleop_key --ros-args --remap turtle1/cmd_vel:=T63/cmd_vel
-ros2 bag -o bag1 record /T63/cmd_vel
-ros2 bag play bag1
-ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{theta: 0.5}"
-```
-
-### Week 3 exercise
-
-ROS node to spawn 10 turtles and move them in circles.
-
-```bash
-ros2 run turtlesim turtlesim_node
-ros2 run my_turtlebot turtle_circles
-```
-
-Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan.
-
-```bash
-sudo apt install ros-$ROS_DISTRO-nav2-bringup ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-turtlebot3-gazebo ros-$ROS_DISTRO-turtlebot3*
-
-cd autonomy_ws
-source install/setup.bash
-export ROS_DOMAIN_ID=11
-export TURTLEBOT3_MODEL=burger
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
-
-ros2 launch my_turtlebot turtlebot_simulation.launch.py
-# In RViz, select '2D Pose Estimate and click towards +x (red line)'
-
-ros2 run my_turtlebot lidar_sub
-```
-
-TF2 broadcaster tutorial from [here](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-TF2.html)
-
-```bash
-sudo apt-get install ros-humble-rviz2 ros-humble-turtle-tf2-py ros-humble-tf2-ros ros-humble-tf2-tools ros-humble-turtlesim
-
-ros2 pkg create --build-type ament_python tf_broadcaster --dependencies tf2_ros rclpy
-pip3 install scipy
-
-# Set up simulation, spawn turtle1
-ros2 run turtlesim turtlesim_node
-ros2 run turtlesim turtle_teleop_key
-
-# Broadtcast turtle1
-ros2 run tf_broadcaster broadcaster turtle1  
-ros2 run tf2_ros tf2_echo turtle1 world
-
-# Spawn and broadcast turtle2
-ros2 service call /spawn turtlesim/srv/Spawn "{x: 2, y: 2, theta: 0.2, name: "turtle2"}"
-ros2 run tf_broadcaster broadcaster turtle2
-
-# Make turtle2 follow turtle1
-ros2 run tf_broadcaster listener turtle1 turtle2
-```
-
-### Week 4 Exercise
-
-Task: Create a localization ROS node for your turtlebot
-
-- Use the LIDAR scanner
-- Assume a constant velocity model
-- Publish a TF with the result of your odometry
-- Compare with the one provided by ROS
-
-**Commands** </br>
-Re-run commands from week 3 to start the simulation and obtain LIDAR scans.
-
-LIDAR Localization
-
-```bash
-ros2 launch my_turtlebot turtlebot_simulation.launch.py
-# In RViz, select '2D Pose Estimate and click towards +x (red line)'
-
-ros2 run my_turtlebot lidar_localization
-ros2 run my_turtlebot lidar_localization --ros-args --log-level debug
-
-# To move turtlebot and run lidar_localization,
-ros2 launch my_turtlebot turtlebot_localization.launch.py
-```
-
-### Week 5 Exercise
-
-Publishing a map
-
-- Create a 2D occupancy grid using a 2D matrix
-- Fill random cells in the matrix with the value 100 and the rest with 0
-- Create an OccupancyGrid message and fill in the information (along with your map)
-- Publish the map on the topic /map with a frequency of 0.5Hz
-- Remember to add a transform that the map can live in (either static or dynamic)
-
-Overlaying laser scans
-
-- Create an empty 2D map
-- Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
-- Add them to your internal map representation
-- Publish the updated map
-
-Moving the laser scan around in the map
-
-- Use the odometry you developed last time to move the pointcloud as the robot moves
