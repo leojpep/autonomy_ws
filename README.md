@@ -10,11 +10,11 @@ docker build -t tiryoh/ros2-desktop-vnc:humble .
 docker run -p 6080:80 --security-opt seccomp=unconfined --shm-size=512m tiryoh/ros2-desktop-vnc:humble
 ```
 
-Go to  `localhost:6080`, password: `ubuntu`
+Go to `localhost:6080`, password: `ubuntu`
 
 ## Exercises
 
-To build the packages, I think it requires the following package versions
+If there are errors encountered during `colcon build`, I think it requires the following package versions.
 
 ```bash
 pip install setuptools_scm == 6.0
@@ -36,14 +36,14 @@ ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{the
 
 ### Week 3 exercise
 
-ROS node to spawn 10 turtles and move them in circles.
+**Task 1:** ROS node to spawn 10 turtles and move them in circles. (see `turtle_circles.py`)
 
 ```bash
 ros2 run turtlesim turtlesim_node
 ros2 run my_turtlebot turtle_circles
 ```
 
-Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan.
+**Task 2:** Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan. (see `lidar_sub.py`)
 
 ```bash
 sudo apt install ros-$ROS_DISTRO-nav2-bringup ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-turtlebot3-gazebo ros-$ROS_DISTRO-turtlebot3*
@@ -56,12 +56,13 @@ export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share
 export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
 
 ros2 launch my_turtlebot turtlebot_simulation.launch.py
-# In RViz, select '2D Pose Estimate and click towards +x (red line)'
+# In RViz, select '2D Pose Estimate', 
+# click on the robot and drag  towards +x (red line)
 
 ros2 run my_turtlebot lidar_sub
 ```
 
-TF2 broadcaster tutorial from [here](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-TF2.html)
+**Task 3:** TF2 broadcaster tutorial from [here](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-TF2.html) (see scripts inside `tf_broadcaster` package)
 
 ```bash
 sudo apt-get install ros-humble-rviz2 ros-humble-turtle-tf2-py ros-humble-tf2-ros ros-humble-tf2-tools ros-humble-turtlesim
@@ -87,17 +88,14 @@ ros2 run tf_broadcaster listener turtle1 turtle2
 
 ### Week 4 Exercise
 
-Task: Create a localization ROS node for your turtlebot
+**Task 1:** Create a localization ROS node for your turtlebot (not done)
 
 - Use the LIDAR scanner
 - Assume a constant velocity model
 - Publish a TF with the result of your odometry
 - Compare with the one provided by ROS
 
-**Commands** </br>
-Re-run commands from week 3 to start the simulation and obtain LIDAR scans.
-
-LIDAR Localization
+LIDAR Localization with ICP (see `lidar_icp.py`)
 
 ```bash
 # In every new terminal, paste the following commands
@@ -120,22 +118,40 @@ ros2 launch my_turtlebot turtlebot_localization.launch.py
 
 ### Week 5 Exercise
 
-Publishing a map
+**Task 1:** Publishing a map (see `map_random.py`)
 
 - Create a 2D occupancy grid using a 2D matrix
 - Fill random cells in the matrix with the value 100 and the rest with 0
 - Create an OccupancyGrid message and fill in the information (along with your map)
 - Publish the map on the topic /map with a frequency of 0.5Hz
-- Remember to add a transform that the map can live in (either static or dynamic)
+- Remember to add a transform that the map can live in (either static or dynamic) (what does this mean?)
 
-Overlaying laser scans
+```bash
+# In one terminal,
+ros2 launch my_turtlebot turtlebot_rviz.launch.py 
+
+# In another terminal,
+ros2 run my_turtlebot map_random 
+```
+
+**Task 2:** Overlaying laser scans (see `map_lidar.py`)
 
 - Create an empty 2D map
 - Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
 - Add them to your internal map representation
 - Publish the updated map
 
-Moving the laser scan around in the map
+```bash
+# In one terminal,
+ros2 launch my_turtlebot turtlebot_simulation.launch.py
+# In RViz, select '2D Pose Estimate', 
+# click on the robot and drag  towards +x (red line)
+
+# In another terminal,
+ros2 run my_turtlebot map_lidar 
+```
+
+**Task 3:** Moving the laser scan around in the map (not done)
 
 - Use the odometry you developed last time to move the pointcloud as the robot moves
 
@@ -158,12 +174,12 @@ ros2 node info <node_name>
 - many to many connections
 
 ```bash
-rqt_graph			# visualize nodes & topics
+rqt_graph             # visualize nodes & topics
 ros2 topic list
-ros2 topic list -t # append topic type
+ros2 topic list -t    # append topic type
 ros2 topic echo <topic_name>
 ros2 topic info <topic_name>
-ros2 topic hz <topic_name>	# pub rate
+ros2 topic hz <topic_name>     # pub rate
 ros2 interface show <msg_name>
 
 ros2 topic pub <topic_name> <msg_type> '<args>'
