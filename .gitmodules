@@ -1,0 +1,3 @@
+[submodule "src/RobotAutonomy"]
+	path = src/RobotAutonomy
+	url = https://github.com/RasmusAndersen/RobotAutonomy
