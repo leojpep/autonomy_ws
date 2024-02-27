@@ -14,6 +14,13 @@ Go to  `localhost:6080`, password: `ubuntu`
 
 ## Exercises
 
+To build the packages, I think it requires the following package versions
+
+```bash
+pip install setuptools_scm == 6.0
+pip install setuptools == 58.2
+```
+
 ### Week 2 exercise
 
 ```bash
@@ -93,6 +100,14 @@ Re-run commands from week 3 to start the simulation and obtain LIDAR scans.
 LIDAR Localization
 
 ```bash
+# In every new terminal, paste the following commands
+cd autonomy_ws
+source install/setup.bash
+export ROS_DOMAIN_ID=11
+export TURTLEBOT3_MODEL=burger
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
+
 ros2 launch my_turtlebot turtlebot_simulation.launch.py
 # In RViz, select '2D Pose Estimate and click towards +x (red line)'
 
@@ -229,7 +244,7 @@ ros2 bag play <bag_name>
 
 ```bash
 ros2 pkg create --build-type ament_python <pkg_name>
-colcon build --packages-select <pkg_name>
+colcon build --packages-select <pkg_name> --symlink-install
 source install/local_setup.bash
 ```
 

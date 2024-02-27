@@ -1,4 +1,4 @@
-'''
+"""
 Script for TurtleBot3 to localize with LIDAR using 
 iterative closest point (ICP) algorithm.
 
@@ -6,140 +6,118 @@ iterative closest point (ICP) algorithm.
 2. Assume constant velocity model
 3. Publish TF with result of odometry
 4. Compare with the TF provided by ROS
-'''
+"""
 
 import rclpy
-import copy
 import numpy as np
-import array as arr
-
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
+from rclpy.qos import (
+    QoSProfile,
+    QoSReliabilityPolicy,
+    QoSHistoryPolicy,
+    QoSDurabilityPolicy,
+)
 from sensor_msgs.msg import LaserScan, PointCloud2
 from laser_geometry import LaserProjection
-from scipy.spatial import KDTree
-
-from .point_cloud2 import *
 
 
 class LidarSubscriber(Node):
     def __init__(self):
-        super().__init__('lidar_localization')
+        super().__init__("lidar_icp")
         self.qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST,
-            depth=1
+            depth=1,
         )
 
         self.subscriber = self.create_subscription(
-            LaserScan, '/scan', self.sub_callback, self.qos_profile)
+            LaserScan, "/scan", self.sub_callback, self.qos_profile
+        )
 
         self.laser_projector = LaserProjection()
-        self.cloud_pub = self.create_publisher(
-            PointCloud2, '/cloud', self.qos_profile)
+        self.cloud_pub = self.create_publisher(PointCloud2, "/cloud", self.qos_profile)
 
         # LaserScan messages
-        self.old_raw_scan = None
-        self.old_proc_scan = None
+        self.old_scan: LaserScan = None
 
-    def convert_scan_to_cloud(self, scan):
-        '''
-        Convert the LIDAR scan data to numpy arrays.
+    def convert_scan_to_cloud(self, old_scan: LaserScan, new_scan: LaserScan):
+        """
+        Filter out inf values and convert the LIDAR scan data to np.arrays.
 
         Args:
-            scan (LaserScan): The LIDAR scan data.
+            old_scan (LaserScan): The old LIDAR scan data.
+            new_scan (LaserScan): The new LIDAR scan data.
 
         Returns:
-            clouds: List of numpy arrays of the point cloud data.
-        '''
-        # # Create variables to store new processed ranges
-        # old_proc_scan = self.old_raw_scan
-        # new_proc_scan = copy.deepcopy(scan)
-
-        # # Keep values if both scans has finite values
-        # old_raw_ranges = np.array(self.old_raw_scan.ranges, np.float32)
-        # new_raw_ranges = np.array(scan.ranges, np.float32)
-        # old_inf_idx = np.isfinite(old_raw_ranges)  # (360,)
-        # new_inf_idx = np.isfinite(new_raw_ranges)  # (360,)
-        # indices = [old_inf_idx[i] and new_inf_idx[i]
-        #            for i in range(len(old_inf_idx))]    # len=360
-        # old_ranges = old_raw_ranges[indices]    # numpy array, about (212,)
-        # new_ranges = new_raw_ranges[indices]    # numpy array, about (212,)
-        # self.get_logger().debug(f"old_ranges: {old_ranges.shape}")
-        # self.get_logger().debug(f"new_ranges: {new_ranges.shape}")
-
-        # # Modify ranges of LaserScan messages
-        # old_proc_scan.ranges = arr.array('f', old_ranges)
-        # new_proc_scan.ranges = arr.array('f', new_ranges)
-
-        # # Convert sensor_msgs::LaserScan scan -> sensor_msgs::PointCloud2
-        # new_cloud = self.laser_projector.projectLaser(new_proc_scan)
-        # old_cloud = self.laser_projector.projectLaser(old_proc_scan)
-        # BUG: old_cloud_np may defer from old_proc_scan by 1 point
-
-        # Convert sensor_msgs::LaserScan scan -> sensor_msgs::PointCloud2
-        new_cloud = self.laser_projector.projectLaser(scan)
-        old_cloud = self.laser_projector.projectLaser(self.old_raw_scan)
-
-        # Convert PointCloud2 -> generator -> np arrays
-        old_cloud_arr = read_points(
-            old_cloud, field_names=("x", "y", "z"), skip_nans=False)  # generator
-        new_cloud_arr = read_points(
-            new_cloud, field_names=("x", "y", "z"), skip_nans=False)
-        old_cloud_np = np.array(list(old_cloud_arr))
-        new_cloud_np = np.array(list(new_cloud_arr))
-        print(f"old_cloud_np: {old_cloud_np.shape}")
-        print(f"new_cloud_np: {new_cloud_np.shape}")
-
-        return [old_cloud_np, new_cloud_np]
-
-    def find_closest_points(self, p1, p2):
+            p1, p2: numpy arrays of the point cloud data.
         """
-        For each point in p2, find the closest point in p1.
+        n_scans = len(new_scan.ranges)  # 360
+        p1_ranges = np.array(old_scan.ranges, np.float32)
+        p2_ranges = np.array(new_scan.ranges, np.float32)
 
-        Args:
-            p1 (np.array): The old point cloud.
-            p2 (np.array): The new point cloud.
+        # Find indices where the scan data is inf in either scan
+        p1_inf_idx = np.isinf(p1_ranges)  # (360,)
+        p2_inf_idx = np.isinf(p2_ranges)  # (360,)
+        indices = [p1_inf_idx[i] or p2_inf_idx[i] for i in range(n_scans)]
 
-        Returns:
-            selected_points (np.array): Closest points in p1 to p2.
-        """
-        tree = KDTree(p1)
-        distances, indices = tree.query(p2, k=1)
-        # indices[i]: 1-idx of the closest point in p1 to a point in p2
+        # Make both ranges zero if either scan contains inf
+        p1_ranges[indices] = 0
+        p2_ranges[indices] = 0
+        # Zero values cannot be deleted yet as they are needed to convert
+        # for the angle increment when convering to cartesian.
 
-        # self.get_logger().debug(f"indices:\n {indices}")
-        # print(f"indices:\n {indices}")
-        selected_points = p1[indices]
-        return selected_points
+        # Convert the polar LIDAR scan data to euclidean point cloud data
+        angle_min = new_scan.angle_min
+        angle_increment = new_scan.angle_increment
+        p1 = np.zeros((n_scans, 2))
+        p2 = np.zeros((n_scans, 2))
+        for i in range(n_scans):
+            p1[i, 0] = p1_ranges[i] * np.cos(angle_min + angle_increment * i)
+            p1[i, 1] = p1_ranges[i] * np.sin(angle_min + angle_increment * i)
+            p2[i, 0] = p2_ranges[i] * np.cos(angle_min + angle_increment * i)
+            p2[i, 1] = p2_ranges[i] * np.sin(angle_min + angle_increment * i)
+
+        # Find the indices of the zero points that were inf
+        p1_zero_idx = np.where(p1_ranges == 0)[0]
+        p2_zero_idx = np.where(p2_ranges == 0)[0]
+
+        # Remove zero points that were inf
+        # print("before", p1.shape, p2.shape)
+        p1 = np.delete(p1, p1_zero_idx, axis=0)
+        p2 = np.delete(p2, p2_zero_idx, axis=0)
+        # print("after", p1.shape, p2.shape)
+
+        # 2xN
+        p1 = p1.reshape(2, -1)
+        p2 = p2.reshape(2, -1)
+        assert p1.shape == p2.shape, "p1 and p2 must have the same shape"
+
+        return p1, p2  # (2,n)
 
     def icp(self, p1, p2):
         """
         Implement the ICP algorithm.
 
         Args:
-            old_cloud (np.array): The old point cloud.
-            new_cloud (np.array): The new point cloud.
+            old_cloud (np.array): The old point cloud, 2xN.
+            new_cloud (np.array): The new point cloud, 2xN.
 
         Returns:
-            R (np.array): The rotation matrix.
-            t (np.array): The translation vector.
+            R (np.array): The rotation matrix, 2x2.
+            t (np.array): The translation vector, 2x1.
         """
-        # Find closest points
-        selected_points = self.find_closest_points(p1, p2)
-
         # Compute the mean
-        p1_mu = np.mean(selected_points, axis=0)
-        p2_mu = np.mean(p2, axis=0)
+        p1_mu = np.mean(p1, axis=1).reshape(2, 1)
+        p2_mu = np.mean(p2, axis=1).reshape(2, 1)
 
         # Center the point clouds
-        # TODO: subtract from mean of selected points or p1?
-        p1_c = selected_points - p1_mu
+        p1_c = p1 - p1_mu
         p2_c = p2 - p2_mu
 
-        # Compute the cross-covariance matrix, 3x3
-        cov_matrix = p1_c.T @ p2_c      # TODO: is this correct?
+        # Compute the 3x3 cross-covariance matrix
+        cov_matrix = p1_c @ p2_c.T
+        assert cov_matrix.shape == (2, 2), "Covariance matrix must be 2x2"
 
         # Compute the SVD of the cross-covariance matrix
         U, S, Vt = np.linalg.svd(cov_matrix)
@@ -153,46 +131,48 @@ class LidarSubscriber(Node):
         return R, t
 
     def sub_callback(self, scan):
-        '''
+        """
         Apply ICP algorithm to the LIDAR scan data.
-        '''
+        """
         # Allow for the first scan to be saved in 1st iteration
-        if self.old_raw_scan is None:
-            self.old_raw_scan = scan
+        if self.old_scan is None:
+            self.old_scan = scan
             print("Initialized")
             return
 
         # Convert the LIDAR scan data to point cloud data
-        clouds = self.convert_scan_to_cloud(scan)
-        p1 = clouds[0]
-        p2 = clouds[1]
+        p1, p2 = self.convert_scan_to_cloud(self.old_scan, scan)
 
-        i = 1
+        i = 0
         max_iter = 50
-        while i <= max_iter:
-
+        tolerance = 1e-3
+        while i < max_iter:
+            i += 1
             # Iterate through the ICP algorithm
             R, t = self.icp(p1, p2)
 
             # Apply transformation to align the old point cloud
-            p1 = p1 @ R.T + t
+            p1 = R @ p1 + t  # (2,2) @ (2,n) + (2,1) = (2,n)
 
             # Compute the change in the computed transformation
             change = np.linalg.norm(t)
-            print(f'Iteration {i}, change: {change}')
+            if i % 10 == 0:
+                self.get_logger().info(f"Iteration {i}, change: {change}")
+                self.get_logger().info(f'R:\n"{R}"')
 
             # Check for convergence
-            i += 1
-            if change < 1e-7:
-                print(f'Converged after {i} iterations')
+            if change < tolerance:
+                self.get_logger().info(
+                    f"Converged after {i} iterations, change: {change}"
+                )
                 break
-        
-        if i > max_iter:
-            print(f'Failed to converge after {max_iter} iterations')
+
+        if i == max_iter:
+            self.get_logger().info(f"Failed to converge after {max_iter} iterations")
 
         # Save for next iteration
-        self.old_raw_scan = scan
-        print('Processed LIDAR data')
+        self.old_scan = scan
+        print("Processed LIDAR data")
 
 
 def main():
@@ -202,5 +182,5 @@ def main():
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
