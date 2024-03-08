@@ -48,14 +48,15 @@ import struct
 from sensor_msgs.msg import PointCloud2, PointField
 
 _DATATYPES = {}
-_DATATYPES[PointField.INT8]    = ('b', 1)
-_DATATYPES[PointField.UINT8]   = ('B', 1)
-_DATATYPES[PointField.INT16]   = ('h', 2)
-_DATATYPES[PointField.UINT16]  = ('H', 2)
-_DATATYPES[PointField.INT32]   = ('i', 4)
-_DATATYPES[PointField.UINT32]  = ('I', 4)
-_DATATYPES[PointField.FLOAT32] = ('f', 4)
-_DATATYPES[PointField.FLOAT64] = ('d', 8)
+_DATATYPES[PointField.INT8] = ("b", 1)
+_DATATYPES[PointField.UINT8] = ("B", 1)
+_DATATYPES[PointField.INT16] = ("h", 2)
+_DATATYPES[PointField.UINT16] = ("H", 2)
+_DATATYPES[PointField.INT32] = ("i", 4)
+_DATATYPES[PointField.UINT32] = ("I", 4)
+_DATATYPES[PointField.FLOAT32] = ("f", 4)
+_DATATYPES[PointField.FLOAT64] = ("d", 8)
+
 
 def read_points(cloud, field_names=None, skip_nans=False, uvs=[]):
     """
@@ -71,11 +72,16 @@ def read_points(cloud, field_names=None, skip_nans=False, uvs=[]):
     @return: Generator which yields a list of values for each point.
     @rtype:  generator
     """
-    assert isinstance(cloud, PointCloud2), 'cloud is not a sensor_msgs.msg.PointCloud2'
+    assert isinstance(cloud, PointCloud2), "cloud is not a sensor_msgs.msg.PointCloud2"
     fmt = _get_struct_fmt(cloud.is_bigendian, cloud.fields, field_names)
-    width, height, point_step, row_step, data, isnan = cloud.width, cloud.height, \
-                                                       cloud.point_step, cloud.row_step, \
-                                                       cloud.data, math.isnan
+    width, height, point_step, row_step, data, isnan = (
+        cloud.width,
+        cloud.height,
+        cloud.point_step,
+        cloud.row_step,
+        cloud.data,
+        math.isnan,
+    )
     unpack_from = struct.Struct(fmt).unpack_from
 
     if skip_nans:
@@ -113,12 +119,13 @@ def read_points(cloud, field_names=None, skip_nans=False, uvs=[]):
                     yield unpack_from(data, offset)
                     offset += point_step
 
+
 def read_points_list(cloud, field_names=None, skip_nans=False, uvs=[]):
     """
     Read points from a L{sensor_msgs.PointCloud2} message.
-    
-    This function returns a list of namedtuples. It operates on top of the read_points method. For more efficient access use read_points directly. 
- 
+
+    This function returns a list of namedtuples. It operates on top of the read_points method. For more efficient access use read_points directly.
+
     @param cloud: The point cloud to read from.
     @type  cloud: L{sensor_msgs.PointCloud2}
     @param field_names: The names of fields to read. If None, read all fields. [default: None]
@@ -130,7 +137,7 @@ def read_points_list(cloud, field_names=None, skip_nans=False, uvs=[]):
     @return: List of namedtuples containing the values for each point
     @rtype: list
     """
-    assert isinstance(cloud, PointCloud2), 'cloud is not a sensor_msgs.msg.PointCloud2'
+    assert isinstance(cloud, PointCloud2), "cloud is not a sensor_msgs.msg.PointCloud2"
 
     if field_names is None:
         field_names = [f.name for f in cloud.fields]
@@ -138,6 +145,7 @@ def read_points_list(cloud, field_names=None, skip_nans=False, uvs=[]):
     Point = namedtuple("Point", field_names)
 
     return [Point._make(l) for l in read_points(cloud, field_names, skip_nans, uvs)]
+
 
 def create_cloud(header, fields, points):
     """
@@ -148,7 +156,7 @@ def create_cloud(header, fields, points):
     @type  fields: iterable of L{sensor_msgs.msg.PointField}
     @param points: The point cloud points.
     @type  points: list of iterables, i.e. one iterable for each point, with the
-                   elements of each iterable being the values of the fields for 
+                   elements of each iterable being the values of the fields for
                    that point (in the same order as the fields parameter)
     @return: The point cloud.
     @rtype:  L{sensor_msgs.msg.PointCloud2}
@@ -163,43 +171,56 @@ def create_cloud(header, fields, points):
         pack_into(buff, offset, *p)
         offset += point_step
 
-    return PointCloud2(header=header,
-                       height=1,
-                       width=len(points),
-                       is_dense=False,
-                       is_bigendian=False,
-                       fields=fields,
-                       point_step=cloud_struct.size,
-                       row_step=cloud_struct.size * len(points),
-                       data=buff.raw)
+    return PointCloud2(
+        header=header,
+        height=1,
+        width=len(points),
+        is_dense=False,
+        is_bigendian=False,
+        fields=fields,
+        point_step=cloud_struct.size,
+        row_step=cloud_struct.size * len(points),
+        data=buff.raw,
+    )
+
 
 def create_cloud_xyz32(header, points):
     """
     Create a L{sensor_msgs.msg.PointCloud2} message with 3 float32 fields (x, y, z).
     @param header: The point cloud header.
     @type  header: L{std_msgs.msg.Header}
-    @param points: The point cloud points. 
+    @param points: The point cloud points.
     @type  points: iterable
     @return: The point cloud.
     @rtype:  L{sensor_msgs.msg.PointCloud2}
     """
-    fields = [PointField('x', 0, PointField.FLOAT32, 1),
-              PointField('y', 4, PointField.FLOAT32, 1),
-              PointField('z', 8, PointField.FLOAT32, 1)]
+    fields = [
+        PointField("x", 0, PointField.FLOAT32, 1),
+        PointField("y", 4, PointField.FLOAT32, 1),
+        PointField("z", 8, PointField.FLOAT32, 1),
+    ]
     return create_cloud(header, fields, points)
 
+
 def _get_struct_fmt(is_bigendian, fields, field_names=None):
-    fmt = '>' if is_bigendian else '<'
+    fmt = ">" if is_bigendian else "<"
     offset = 0
-    for field in (f for f in sorted(fields, key=lambda f: f.offset) if field_names is None or f.name in field_names):
+    for field in (
+        f
+        for f in sorted(fields, key=lambda f: f.offset)
+        if field_names is None or f.name in field_names
+    ):
         if offset < field.offset:
-            fmt += 'x' * (field.offset - offset)
+            fmt += "x" * (field.offset - offset)
             offset = field.offset
         if field.datatype not in _DATATYPES:
-            print('Skipping unknown PointField datatype [%d]' % field.datatype, file=sys.stderr)
+            print(
+                "Skipping unknown PointField datatype [%d]" % field.datatype,
+                file=sys.stderr,
+            )
         else:
             datatype_fmt, datatype_length = _DATATYPES[field.datatype]
-            fmt    += field.count * datatype_fmt
+            fmt += field.count * datatype_fmt
             offset += field.count * datatype_length
 
     return fmt

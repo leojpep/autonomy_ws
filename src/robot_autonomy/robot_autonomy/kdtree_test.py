@@ -15,8 +15,8 @@ print(f"old_arr:\n{old_cloud}")
 tree = KDTree(old_cloud)
 
 # Query the nearest neighbor
-new_cloud = np.array([[1, 3],[4,4.6],[0,3]])
-dd,ii = tree.query(new_cloud, k=1)
+new_cloud = np.array([[1, 3], [4, 4.6], [0, 3]])
+dd, ii = tree.query(new_cloud, k=1)
 
 # tree.query(x) Finds the closest point in the tree to each point in the query x.
 
