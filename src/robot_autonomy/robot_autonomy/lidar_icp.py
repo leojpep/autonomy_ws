@@ -19,6 +19,9 @@ from rclpy.qos import (
 )
 from sensor_msgs.msg import LaserScan, PointCloud2
 from laser_geometry import LaserProjection
+from scipy.spatial import KDTree
+
+CONVERGE_TOLERANCE = 1e-3
 
 
 class LidarSubscriber(Node):
@@ -83,10 +86,8 @@ class LidarSubscriber(Node):
         p2_zero_idx = np.where(p2_ranges == 0)[0]
 
         # Remove zero points that were inf
-        # print("before", p1.shape, p2.shape)
         p1 = np.delete(p1, p1_zero_idx, axis=0)
         p2 = np.delete(p2, p2_zero_idx, axis=0)
-        # print("after", p1.shape, p2.shape)
 
         # 2xN
         p1 = p1.reshape(2, -1)
@@ -100,8 +101,8 @@ class LidarSubscriber(Node):
         Implement the ICP algorithm.
 
         Args:
-            old_cloud (np.array): The old point cloud, 2xN.
-            new_cloud (np.array): The new point cloud, 2xN.
+            p1 (np.array): The old point cloud, 2xN.
+            p2 (np.array): The new point cloud, 2xN.
 
         Returns:
             R (np.array): The rotation matrix, 2x2.
@@ -115,12 +116,14 @@ class LidarSubscriber(Node):
         p1_c = p1 - p1_mu
         p2_c = p2 - p2_mu
 
-        # Compute the 3x3 cross-covariance matrix
-        cov_matrix = p1_c @ p2_c.T
-        assert cov_matrix.shape == (2, 2), "Covariance matrix must be 2x2"
+        # Compute the 2x2 cross-covariance matrix
+        dot_product = p1_c @ p2_c.T
+        cov = np.cov(dot_product)
+        assert dot_product.shape == (2, 2), "Covariance matrix must be 2x2"
+        assert cov.shape == (2, 2), "Covariance matrix must be 2x2"
 
         # Compute the SVD of the cross-covariance matrix
-        U, S, Vt = np.linalg.svd(cov_matrix)
+        U, S, Vt = np.linalg.svd(cov)
 
         # Compute the rotation matrix
         R = U @ Vt
@@ -129,6 +132,16 @@ class LidarSubscriber(Node):
         t = p1_mu - R @ p2_mu
 
         return R, t
+
+    def compute_cloud_dist(self, p1, p2):
+        """
+        Compute mean distance between each point in p2 and
+        the closest point in p1.
+        """
+        tree = KDTree(p1)
+        distances, indices = tree.query(p2, k=1)
+        cloud_dist = np.mean(distances)
+        return cloud_dist
 
     def sub_callback(self, scan):
         """
@@ -143,9 +156,10 @@ class LidarSubscriber(Node):
         # Convert the LIDAR scan data to point cloud data
         p1, p2 = self.convert_scan_to_cloud(self.old_scan, scan)
 
+        # Main ICP loop
+        T = np.eye(2)
         i = 0
-        max_iter = 50
-        tolerance = 1e-3
+        max_iter = 100
         while i < max_iter:
             i += 1
             # Iterate through the ICP algorithm
@@ -154,21 +168,22 @@ class LidarSubscriber(Node):
             # Apply transformation to align the old point cloud
             p1 = R @ p1 + t  # (2,2) @ (2,n) + (2,1) = (2,n)
 
+            # Update the transformation
+            T = R @ T + t
+
             # Compute the change in the computed transformation
-            change = np.linalg.norm(t)
-            if i % 10 == 0:
-                self.get_logger().info(f"Iteration {i}, change: {change}")
-                self.get_logger().info(f'R:\n"{R}"')
+            dist = self.compute_cloud_dist(p1.T, p2.T)
 
             # Check for convergence
-            if change < tolerance:
+            if dist < CONVERGE_TOLERANCE:
                 self.get_logger().info(
-                    f"Converged after {i} iterations, change: {change}"
+                    f"Converged after {i} iterations, dist: {dist:8f}"
                 )
                 break
 
         if i == max_iter:
             self.get_logger().info(f"Failed to converge after {max_iter} iterations")
+            self.get_logger().info(f"R:\n{R}")
 
         # Save for next iteration
         self.old_scan = scan

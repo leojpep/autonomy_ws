@@ -10,6 +10,7 @@ Notes and commands taken from lectures and exercises.
   - [Week 3 exercise](#week-3-exercise)
   - [Week 4 Exercise](#week-4-exercise)
   - [Week 5 Exercise](#week-5-exercise)
+  - [Week 6 Exercise](#week-6-exercise)
 - [ROS2 Concepts](#ros2-concepts)
   - [ros nodes](#ros-nodes)
   - [ros topics](#ros-topics)
@@ -33,6 +34,13 @@ docker run -p 6080:80 --security-opt seccomp=unconfined --shm-size=512m tiryoh/r
 Go to `localhost:6080`, password: `ubuntu`
 
 ## Exercises
+
+TODO:
+
+- Week 4 Task 1: ICP with constant velocity model
+- Week 5 Task 3: Move OccupancyGrid with odometry
+- Week 6:
+  - Read up on Particle Filter
 
 If there are errors encountered during `colcon build`, I think it requires the following package versions.
 
@@ -129,6 +137,8 @@ export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)
 ros2 launch my_turtlebot turtlebot_simulation.launch.py
 # In RViz, select '2D Pose Estimate and click towards +x (red line)'
 
+ros2 run my_turtlebot lidar_icp
+ros2 run my_turtlebot lidar_icp --ros-args --log-level debug
 ros2 run my_turtlebot lidar_localization
 ros2 run my_turtlebot lidar_localization --ros-args --log-level debug
 
@@ -175,6 +185,47 @@ ros2 run my_turtlebot map_lidar
 
 - Use the odometry you developed last time to move the pointcloud as the robot moves
 
+### Week 6 Exercise
+
+**Task 1:** Using your own localization and accumulate a map when you drive around in the environment
+
+- Use a counter to define if a cell is free or occupied
+
+```bash
+# In one terminal,
+ros2 launch my_turtlebot turtlebot_simulation.launch.py
+# In RViz, select '2D Pose Estimate', 
+# click on the robot and drag  towards +x (red line)
+
+# In another terminal,
+ros2 run my_turtlebot map_lidar
+```
+
+**Task 2:** The simulation we are using already uses a particle filter to perform localization
+
+- Set an initial starting point of the robot in rviz using the “2D pose estimate” button
+- Create a ROS2 node that
+  - Prints the number of particles used
+  - Computes the expected position of the robot based on the particles
+- Change the number of particles when you launch the simulation
+
+```bash
+# In one terminal,
+ros2 launch my_turtlebot turtlebot_simulation.launch.py
+# In RViz, select '2D Pose Estimate', 
+# click on the robot and drag  towards +x (red line)
+
+# In another terminal,
+ros2 run my_turtlebot particle_sub 
+```
+
+**Task 3:** Implement your own particle filter for localization in a map
+
+- Use the cmd_topic to estimate your motion model
+- Subscribe to the LIDAR topic and compute features
+- For each particle compute the error for each feature
+- Update your importance weights based on the error
+
 ## ROS2 Concepts
 
 ### ros nodes
@@ -198,6 +249,7 @@ rqt_graph             # visualize nodes & topics
 ros2 topic list
 ros2 topic list -t    # append topic type
 ros2 topic echo <topic_name>
+ros2 topic info <topic_name> --verbose  # shows QOS profile
 ros2 topic info <topic_name>
 ros2 topic hz <topic_name>     # pub rate
 ros2 interface show <msg_name>
@@ -309,4 +361,4 @@ source install/local_setup.bash
 
 - `~/ros2_ws$ source install/setup.bash`
 
-- `source /opt/ros/humnle/setup.bash`
+- `source /opt/ros/humble/setup.bash`
