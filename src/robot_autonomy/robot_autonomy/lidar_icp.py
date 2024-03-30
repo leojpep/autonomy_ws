@@ -17,9 +17,8 @@ from rclpy.qos import (
     QoSHistoryPolicy,
     QoSDurabilityPolicy,
 )
-from sensor_msgs.msg import LaserScan, PointCloud2
-from laser_geometry import LaserProjection
-from scipy.spatial import KDTree
+from sensor_msgs.msg import LaserScan
+from sklearn.neighbors import NearestNeighbors
 
 CONVERGE_TOLERANCE = 1e-3
 
@@ -33,27 +32,28 @@ class LidarSubscriber(Node):
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1,
         )
-
         self.subscriber = self.create_subscription(
             LaserScan, "/scan", self.sub_callback, self.qos_profile
         )
-
-        self.laser_projector = LaserProjection()
-        self.cloud_pub = self.create_publisher(PointCloud2, "/cloud", self.qos_profile)
-
-        # LaserScan messages
         self.old_scan: LaserScan = None
+
+    def add_homogeneous(self, p):
+        """
+        Add homogeneous coordinate to a 2xN point cloud data.
+        """
+        return np.vstack((p, np.ones(p.shape[1])))  # (3,n)
 
     def convert_scan_to_cloud(self, old_scan: LaserScan, new_scan: LaserScan):
         """
         Filter out inf values and convert the LIDAR scan data to np.arrays.
+        Returns inhomogenous arrays of the cloud scans.
 
         Args:
             old_scan (LaserScan): The old LIDAR scan data.
             new_scan (LaserScan): The new LIDAR scan data.
 
         Returns:
-            p1, p2 (np.array): point cloud data of old and new scan.
+            p1, p2 (np.array): point cloud data of old and new scan, 2xN.
         """
         n_scans = len(new_scan.ranges)  # 360
         p1_ranges = np.array(old_scan.ranges, np.float32)
@@ -89,7 +89,7 @@ class LidarSubscriber(Node):
         p1 = np.delete(p1, p1_zero_idx, axis=0)
         p2 = np.delete(p2, p2_zero_idx, axis=0)
 
-        # 2xN
+        # Homogenous 2xN
         p1 = p1.reshape(2, -1)
         p2 = p2.reshape(2, -1)
         assert p1.shape == p2.shape, "p1 and p2 must have the same shape"
@@ -101,47 +101,56 @@ class LidarSubscriber(Node):
         Implement the ICP algorithm.
 
         Args:
-            p1 (np.array): The old point cloud, 2xN.
-            p2 (np.array): The new point cloud, 2xN.
+            p1 (np.array): The old homogeneous point cloud, Nx2, source
+            p2 (np.array): The new homogeneous point cloud, Nx2, destination
 
         Returns:
-            R (np.array): The rotation matrix, 2x2.
-            t (np.array): The translation vector, 2x1.
+            T (np.array): Homogeneous transformation matrix, 3x3. Maps p1 onto p2.
         """
+        # NOTE: idk why, but it converges better when dealing with Nx2 instead of 2xN     
+
+        # Get number of dimensions
+        m = p1.shape[1]
+
         # Compute the mean
-        p1_mu = np.mean(p1, axis=1).reshape(2, 1)
-        p2_mu = np.mean(p2, axis=1).reshape(2, 1)
+        p1_mu = np.mean(p1, axis=0)
+        p2_mu = np.mean(p2, axis=0)
 
         # Center the point clouds
         p1_c = p1 - p1_mu
         p2_c = p2 - p2_mu
 
         # Compute the 2x2 cross-covariance matrix
-        dot_product = p1_c @ p2_c.T
-        cov = np.cov(dot_product)
-        assert dot_product.shape == (2, 2), "Covariance matrix must be 2x2"
-        assert cov.shape == (2, 2), "Covariance matrix must be 2x2"
+        H = np.dot(p1_c.T, p2_c)
+        assert H.shape == (2, 2), "Covariance matrix must be 2x2"
+        U, S, Vt = np.linalg.svd(H)
 
-        # Compute the SVD of the cross-covariance matrix
-        U, S, Vt = np.linalg.svd(cov)
+        R = np.dot(Vt.T, U.T)
+        t = p2_mu.T - np.dot(R, p1_mu.T)
 
-        # Compute the rotation matrix
-        R = U @ Vt
+        # Homogeneous transformation
+        T = np.identity(m+1)
+        T[:m, :m] = R
+        T[:m, m] = t
 
-        # Compute the translation vector
-        t = p1_mu - R @ p2_mu
-
-        return R, t
-
-    def compute_cloud_dist(self, p1, p2):
-        """
-        Compute mean distance between each point in p2 and
-        the closest point in p1.
-        """
-        tree = KDTree(p1)
-        distances, indices = tree.query(p2, k=1)
-        cloud_dist = np.mean(distances)
-        return cloud_dist
+        return T
+    
+        
+    def nearest_neighbor(self, src, dst):
+        '''
+        Find the nearest (Euclidean) neighbor in dst for each point in src
+        Input:
+            src: Nxm array of points
+            dst: Nxm array of points
+        Output:
+            distances: Euclidean distances of the nearest neighbor
+            indices: dst indices of the nearest neighbor
+        '''
+        neigh = NearestNeighbors(n_neighbors=1)
+        neigh.fit(dst)
+        distances, indices = neigh.kneighbors(src, return_distance=True)
+        return distances.ravel(), indices.ravel()
+    
 
     def sub_callback(self, scan):
         """
@@ -155,35 +164,41 @@ class LidarSubscriber(Node):
 
         # Convert the LIDAR scan data to point cloud data
         p1, p2 = self.convert_scan_to_cloud(self.old_scan, scan)
+        m = p1.shape[0]     # dimension of data: 2
+        p1 = self.add_homogeneous(p1)
+        p2 = self.add_homogeneous(p2)
 
         # Main ICP loop
-        T = np.eye(2)
+        T_overall = np.eye(m+1)
         i = 0
         max_iter = 100
+        prev_error = 0
         while i < max_iter:
             i += 1
             # Iterate through the ICP algorithm
-            R, t = self.icp(p1, p2)
+            T_temp = self.icp(p1[:m,:].T, p2[:m,:].T)
 
             # Apply transformation to align the old point cloud
-            p1 = R @ p1 + t  # (2,2) @ (2,n) + (2,1) = (2,n)
+            p1 = T_temp @ p1
 
-            # Update the transformation
-            T = R @ T + t
+            # Update the overall transformation
+            T_overall = T_temp @ T_overall
 
-            # Compute the change in the computed transformation
-            dist = self.compute_cloud_dist(p1.T, p2.T)
+            # Find the nearest neighbors between the old cloud and new cloud
+            distances, _ = self.nearest_neighbor(p1[:m,:].T, p2[:m,:].T)
 
-            # Check for convergence
-            if dist < CONVERGE_TOLERANCE:
+            # Check error
+            mean_error = np.mean(distances)
+            if np.abs(prev_error - mean_error) < CONVERGE_TOLERANCE:
                 self.get_logger().info(
-                    f"Converged after {i} iterations, dist: {dist:8f}"
+                    f"Converged after {i} iterations, mean_error: {mean_error:8f}"
                 )
                 break
+            prev_error = mean_error
 
         if i == max_iter:
-            self.get_logger().info(f"Failed to converge after {max_iter} iterations")
-            self.get_logger().info(f"R:\n{R}")
+            self.get_logger().info(
+                f"Failed to converge after {max_iter} iterations\nT:\n{T_overall}")
 
         # Save for next iteration
         self.old_scan = scan

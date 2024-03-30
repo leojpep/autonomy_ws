@@ -6,11 +6,13 @@ Notes and commands taken from lectures and exercises.
 
 - [Set up VNC Container](#set-up-vnc-container)
 - [Exercises](#exercises)
-  - [Week 2 exercise](#week-2-exercise)
-  - [Week 3 exercise](#week-3-exercise)
+  - [Week 2 Exercise](#week-2-exercise)
+  - [Week 3 Exercise](#week-3-exercise)
   - [Week 4 Exercise](#week-4-exercise)
   - [Week 5 Exercise](#week-5-exercise)
   - [Week 6 Exercise](#week-6-exercise)
+  - [Week 7 Exercise](#week-7-exercise)
+  - [Week 8 Exercise](#week-8-exercise)
 - [ROS2 Concepts](#ros2-concepts)
   - [ros nodes](#ros-nodes)
   - [ros topics](#ros-topics)
@@ -22,6 +24,16 @@ Notes and commands taken from lectures and exercises.
   - [ros workspace](#ros-workspace)
 
 <!-- tocstop -->
+
+TODO:
+
+- Week 4
+  - Task 1: ICP with constant velocity model
+- Week 6
+  - Read up on Particle Filter
+  - Particle filter tasks 2 and 3
+- Week 7
+  - Create map using SLAM
 
 ## Set up VNC Container
 
@@ -35,13 +47,6 @@ Go to `localhost:6080`, password: `ubuntu`
 
 ## Exercises
 
-TODO:
-
-- Week 4 Task 1: ICP with constant velocity model
-- Week 5 Task 3: Move OccupancyGrid with odometry
-- Week 6:
-  - Read up on Particle Filter
-
 If there are errors encountered during `colcon build`, I think it requires the following package versions.
 
 ```bash
@@ -49,7 +54,13 @@ pip install setuptools_scm == 6.0
 pip install setuptools == 58.2
 ```
 
-### Week 2 exercise
+Run teleoperation node for turtlebot.
+
+```bash
+ros2 run turtlebot3_teleop teleop_keyboard
+```
+
+### Week 2 Exercise
 
 ```bash
 ros2 run turtlesim turtlesim_node
@@ -62,7 +73,7 @@ ros2 bag play bag1
 ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{theta: 0.5}"
 ```
 
-### Week 3 exercise
+### Week 3 Exercise
 
 **Task 1:** ROS node to spawn 10 turtles and move them in circles. (see `turtle_circles.py`)
 
@@ -139,8 +150,6 @@ ros2 launch my_turtlebot turtlebot_simulation.launch.py
 
 ros2 run my_turtlebot lidar_icp
 ros2 run my_turtlebot lidar_icp --ros-args --log-level debug
-ros2 run my_turtlebot lidar_localization
-ros2 run my_turtlebot lidar_localization --ros-args --log-level debug
 
 # To move turtlebot and run lidar_localization,
 ros2 launch my_turtlebot turtlebot_localization.launch.py
@@ -164,6 +173,8 @@ ros2 launch my_turtlebot turtlebot_rviz.launch.py
 ros2 run my_turtlebot map_random 
 ```
 
+![RVIZ screenshot of random map](assets/media/map_random.png)
+
 **Task 2:** Overlaying laser scans (see `map_lidar.py`)
 
 - Create an empty 2D map
@@ -181,25 +192,31 @@ ros2 launch my_turtlebot turtlebot_simulation.launch.py
 ros2 run my_turtlebot map_lidar 
 ```
 
-**Task 3:** Moving the laser scan around in the map (not done)
+![RVIZ screenshot of lidar map](assets/media/map_lidar.png)
+
+**Task 3:** Moving the laser scan around in the map
 
 - Use the odometry you developed last time to move the pointcloud as the robot moves
 
 ### Week 6 Exercise
 
-**Task 1:** Using your own localization and accumulate a map when you drive around in the environment
+**Task 1:** Using your own localization and accumulate a map when you drive around in the environment (see `map_lidar.py`)
 
 - Use a counter to define if a cell is free or occupied
 
 ```bash
 # In one terminal,
-ros2 launch my_turtlebot turtlebot_simulation.launch.py
+ros2 launch my_turtlebot turtlebot_simulation.launch.py rviz_config_file:=/home/yufan/autonomy_ws/src/RobotAutonomy/rviz/nav2_yufan_view.rviz
 # In RViz, select '2D Pose Estimate', 
 # click on the robot and drag  towards +x (red line)
 
 # In another terminal,
 ros2 run my_turtlebot map_lidar
 ```
+
+![RVIZ screenshot of accumulated map](assets/media/map_lidar_accumulate.png)
+
+![Terminal screenshot of cell counter](assets/media/map_counter.png)
 
 **Task 2:** The simulation we are using already uses a particle filter to perform localization
 
@@ -225,6 +242,60 @@ ros2 run my_turtlebot particle_sub
 - Subscribe to the LIDAR topic and compute features
 - For each particle compute the error for each feature
 - Update your importance weights based on the error
+
+### Week 7 Exercise
+
+**Task 1**: Create your own map in the simulation using SLAM
+
+- This task follows [this tutorial](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-Cartographer.html)
+- Launch simulation with SLAM
+
+```bash
+ros2 launch my_turtlebot turtlebot_simulation.launch.py slam:=True
+```
+
+- Make sure that the fixed frame in RVIz is set to `map`.
+- Move the robot through the environment using teleoperation or RViz Nav2Goal.
+- Save the map.
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f map
+ros2 run nav2_map_server map_saver_cli -f sparse_map
+```
+
+- Launch simulation without SLAM.
+
+```bash
+ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonomy_ws/src/RobotAutonomy/maps/yf_map.yaml
+```
+
+- 2 files `map.pgm` and `map.yaml` will be generated. Put them in the map directory of the
+my_turtlebot package and launch the simulation again without the slam argument
+
+**Task 2**: Use the odometry topic provided by the simulation to accumulate a map (if you don’t already have
+your own localization/odometry)
+
+**Task 3**: Use a counter to define if a cell is free or occupied
+
+**Task 4**: Continue on your own localization and map integration
+
+- Using your own localization, accumulate a map when you drive around in the environment
+
+### Week 8 Exercise
+
+**Task 1**: Implement a probailistic roadmap method.
+
+- In ROS2, subscribe to the map topic and use that map for collision checks.
+- Assume constant cost value for all nodes.
+- Use any nearest neighbor implementation.
+- Create a function that takes as input a number of randomly samped node positions and returns the graph G.
+
+![Pseudocode for roadmap](assets/media/pseudo_roadmap.png)
+
+**Task 2**: Query the plan from the previous exercise.
+
+- By searching for the list of vertices in the graph that connects the start and the goal.
+- Create a function that takes as input a start, goal, and a graph, and returns a list of nodes on the queried path.
 
 ## ROS2 Concepts
 
