@@ -1,11 +1,9 @@
 """
 Script for TurtleBot3 to localize with LIDAR using 
-iterative closest point (ICP) algorithm.
+iterative closest point (ICP) algorithm. No topics are published.
 
 1. Use LIDAR scanner
-2. Assume constant velocity model
-3. Publish TF with result of odometry
-4. Compare with the TF provided by ROS
+2. Apply ICP algorithm to localize the robot
 """
 
 import rclpy

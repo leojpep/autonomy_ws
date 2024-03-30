@@ -1,6 +1,5 @@
 """
-Script to create a simple subscriber node.
-Remember to add a entry_point into the package's setup.py
+Simple node to move the turtlebot constant +x velocity.
 """
 import rclpy
 from rclpy.node import Node

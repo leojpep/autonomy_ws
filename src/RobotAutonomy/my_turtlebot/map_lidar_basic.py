@@ -1,5 +1,5 @@
 """
-Script to overlay laser scans LIDAR data produced by the TurtleBot3.
+Script to overlay laser scans LIDAR data produced by a stationary TurtleBot3.
 
 - Create an empty 2D map
 - Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates

@@ -2,6 +2,8 @@
 Script for TurtleBot3 to localize with LIDAR using 
 iterative closest point (ICP) algorithm.
 
+This is not working yet.
+
 1. Use LIDAR scanner
 2. Assume constant velocity model
 3. Publish TF with result of odometry

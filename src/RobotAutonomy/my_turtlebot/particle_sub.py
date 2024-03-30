@@ -1,9 +1,10 @@
 """
+Incomplete.
+
 Week 6 Task 2: The simulation we are using already uses a particle 
 filter to perform localization.
 
-- Set an initial starting point of the robot in rviz using the 
-  “2D pose estimate” button
+- Set an initial starting point of the robot in RViz
 - Create a ROS2 node that
   - Prints the number of particles used
   - Computes the expected position of the robot based on the particles
