@@ -49,7 +49,7 @@ Notes and commands taken from lectures and exercises.
 - Week 8
   - [x] Implement Dijkstra in Notebook
   - [x] Implement Probabilistic Roadmap (PRM) in ROS
-  - [ ] Query the PRM with to get path from start to end
+  - [x] Query the PRM with to get path from start to end
 
 ## Set up VNC Container
 
@@ -196,7 +196,7 @@ ros2 launch my_turtlebot turtlebot_rviz.launch.py
 ros2 run my_turtlebot map_random 
 ```
 
-![RVIZ screenshot of random map](assets/media/map_random.png)
+![RVIZ screenshot of random map](assets/media/map_random.gif)
 
 **Task 2:** Overlaying laser scans (see `map_lidar_static.py`)
 
@@ -324,19 +324,19 @@ ros2 run my_turtlebot planner_prm
 ```
 
 > [!NOTE]
-> **Old Approach** <br>
+> `connect_k_nearest_neighbors()` <br>
 > Find K-nearest neighbours, create edge if the path is collision-free. This results in each node having at most K edges created, but usually having less than K. <br>
-> **New Approach** <br>
+> `create_k_nearest_edges()` <br>
 > Add K shortest edges that are collision free. This ensures that more nodes have K edges created, but the edges will not be to the K-nearest neighbours
 
 ![Screenshot of PRM generated](assets/media/planner_prm4.png)
-
-![Screenshot of PRM generated](assets/media/planner_prm_path.png)
 
 **Task 2**: Query the plan from the previous exercise.
 
 - By searching for the list of vertices in the graph that connects the start and the goal.
 - Create a function that takes as input a start, goal, and a graph, and returns a list of nodes on the queried path.
+
+![Screenshot of PRM generated](assets/media/planner_prm_path.png)
 
 ## ROS2 Concepts
 

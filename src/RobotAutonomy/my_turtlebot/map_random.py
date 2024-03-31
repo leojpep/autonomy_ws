@@ -21,7 +21,7 @@ from rclpy.qos import (
 PUB_NAME = "map_publisher"
 PUB_MSG = OccupancyGrid
 PUB_TOPIC = "/map"
-PUB_FREQ = 0.5
+PUB_FREQ = 2
 
 
 class MapPublisher(Node):
