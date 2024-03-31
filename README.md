@@ -25,15 +25,27 @@ Notes and commands taken from lectures and exercises.
 
 <!-- tocstop -->
 
-TODO:
-
+- Week 2
+  - [x] ROS tutorial with turtlesim actions & services
+- Week 3
+  - [x] Spawn 10 turtles moving in circles
+  - [x] Subscribe to LIDAR in turtlebot
+  - [x] Make turtle2 follow turtle1 using tf2 broadcaster
 - Week 4
-  - Task 1: ICP with constant velocity model
+  - [x] ICP with stationary robot
+  - [ ] KISS ICP with constant velocity model
+- Week 5
+  - [x] Publish a map with random rectangle obstacles
+  - [x] Create 2D map from LIDAR on a stationary robot
+  - [x] Create 2D map from LIDAR on a moving robot
 - Week 6
-  - Read up on Particle Filter
-  - Particle filter tasks 2 and 3
+  - [ ] Implement your own particle filter
 - Week 7
-  - Create map using SLAM
+  - [x] Create map using SLAM
+- Week 8
+  - [x] Implement Dijkstra in Notebook
+  - [x] Implement Probabilistic Roadmap (PRM) in ROS
+  - [ ] Query the PRM with to get path from start to end
 
 ## Set up VNC Container
 
@@ -52,6 +64,25 @@ If there are errors encountered during `colcon build`, I think it requires the f
 ```bash
 pip install setuptools_scm == 6.0
 pip install setuptools == 58.2
+```
+
+For exercises with turtlebot, run the `.sh` file to set up the environment.
+
+```bash
+cd autonomy_ws
+bash setup_env.sh
+```
+
+which contains
+
+```bash
+# In every new terminal, paste the following commands
+cd autonomy_ws
+source install/setup.bash
+export ROS_DOMAIN_ID=11
+export TURTLEBOT3_MODEL=burger
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
 ```
 
 Run teleoperation node for turtlebot.
@@ -81,6 +112,10 @@ ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{the
 ros2 run turtlesim turtlesim_node
 ros2 run my_turtlebot turtle_circles
 ```
+
+![Spawning turtles](assets/media/turtlesim_circles.png)
+
+![Spawning turtles terminal](assets/media/turtlesim_circles_terminal.png)
 
 **Task 2:** Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan. (see `lidar_sub.py`)
 
@@ -127,7 +162,7 @@ ros2 run tf_broadcaster listener turtle1 turtle2
 
 ### Week 4 Exercise
 
-**Task 1:** Create a localization ROS node for your turtlebot (not done)
+**Task 1:** Create a localization ROS node for your turtlebot (not complete)
 
 - Use the LIDAR scanner
 - Assume a constant velocity model
@@ -137,14 +172,6 @@ ros2 run tf_broadcaster listener turtle1 turtle2
 LIDAR Localization with ICP (see `lidar_icp.py`)
 
 ```bash
-# In every new terminal, paste the following commands
-cd autonomy_ws
-source install/setup.bash
-export ROS_DOMAIN_ID=11
-export TURTLEBOT3_MODEL=burger
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
-
 ros2 launch my_turtlebot turtlebot_simulation.launch.py
 # In RViz, select '2D Pose Estimate and click towards +x (red line)'
 
@@ -175,7 +202,7 @@ ros2 run my_turtlebot map_random
 
 ![RVIZ screenshot of random map](assets/media/map_random.png)
 
-**Task 2:** Overlaying laser scans (see `map_lidar.py`)
+**Task 2:** Overlaying laser scans (see `map_lidar_static.py`)
 
 - Create an empty 2D map
 - Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
@@ -218,7 +245,7 @@ ros2 run my_turtlebot map_lidar
 
 ![Terminal screenshot of cell counter](assets/media/map_counter.png)
 
-**Task 2:** The simulation we are using already uses a particle filter to perform localization
+**Task 2:** The simulation we are using already uses a particle filter to perform localization [not done]
 
 - Set an initial starting point of the robot in rviz using the “2D pose estimate” button
 - Create a ROS2 node that
@@ -252,6 +279,8 @@ ros2 run my_turtlebot particle_sub
 
 ```bash
 ros2 launch my_turtlebot turtlebot_simulation.launch.py slam:=True
+
+ros2 run turtlebot3_teleop teleop_keyboard
 ```
 
 - Make sure that the fixed frame in RVIz is set to `map`.
@@ -291,6 +320,22 @@ your own localization/odometry)
 - Create a function that takes as input a number of randomly samped node positions and returns the graph G.
 
 ![Pseudocode for roadmap](assets/media/pseudo_roadmap.png)
+
+```bash
+ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonomy_ws/src/RobotAutonomy/maps/yf_map.yaml
+
+ros2 run my_turtlebot planner_prm
+```
+
+> [!NOTE]
+> Old Approach
+> Find K-nearest neighbours, create edge if the path is collision-free. This results in each node having at most K edges created, but usually having less than K.
+> New Approach
+> Add K shortest edges that are collision free. This ensures that more nodes have K edges created, but the edges will not be to the K-nearest neighbours
+
+![Screenshot of PRM generated](assets/media/planner_prm3.png)
+
+![Screenshot of PRM generated](assets/media/planner_prm4.png)
 
 **Task 2**: Query the plan from the previous exercise.
 

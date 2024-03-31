@@ -99,7 +99,7 @@ class LidarSubscriber(Node):
         Process the LIDAR sensor data.
         """
         # Convert the LIDAR scan data to euclidean array
-        # p = self.convert_scan_to_cloud(scan)
+        p = self.convert_scan_to_cloud(scan)
 
         # Prepare map metadata
         map_meta = MapMetaData()
@@ -131,29 +131,29 @@ class LidarSubscriber(Node):
         for r, a in zip(ranges, angles):
             self.draw_point(r, a, map_meta)
 
-        # # Denote obstacle in a 2D grid
-        # for x, y in p:
-        #     # x,y are in metres
-        #     # self.get_logger().info(f"Processing point {x}, {y}", once=True)
+        # Denote obstacle in a 2D grid
+        for x, y in p:
+            # x,y are in metres
+            # self.get_logger().info(f"Processing point {x}, {y}", once=True)
 
-        #     # Convert to grid coordinates
-        #     grid_x = int(x / map_meta.resolution)
-        #     grid_y = int(y / map_meta.resolution)
+            # Convert to grid coordinates
+            grid_x = int(x / map_meta.resolution)
+            grid_y = int(y / map_meta.resolution)
 
-        #     self.get_logger().info(f"({x:3f},{y:3f} -> ({grid_x},{grid_y})", once=True)
+            self.get_logger().info(f"({x:3f},{y:3f} -> ({grid_x},{grid_y})", once=True)
 
-        #     # Mark robot position
-        #     self.grid[robot_x,  robot_y] = 0
+            # Mark robot position
+            self.grid[robot_x,  robot_y] = 0
 
-        #     # Mark free area along the ray
-        #     free_area = bresenham((robot_x, robot_y), (grid_x, grid_y))
-        #     for free_x, free_y in free_area:
-        #         if x < map_meta.width and y < map_meta.height:
-        #             self.grid[robot_x+free_x, robot_y+free_y] = 0
+            # Mark free area along the ray
+            free_area = bresenham((robot_x, robot_y), (grid_x, grid_y))
+            for free_x, free_y in free_area:
+                if x < map_meta.width and y < map_meta.height:
+                    self.grid[robot_x+free_x, robot_y+free_y] = 0
 
-        #     # Mark obstacle at end of ray
-        #     if grid_x < map_meta.width and grid_y < map_meta.height:
-        #         self.grid[robot_x + grid_x, robot_y + grid_y] = 100
+            # Mark obstacle at end of ray
+            if grid_x < map_meta.width and grid_y < map_meta.height:
+                self.grid[robot_x + grid_x, robot_y + grid_y] = 100
 
         # Publish message
         msg = OccupancyGrid()
@@ -164,51 +164,51 @@ class LidarSubscriber(Node):
         self.get_logger().info("Published map from LIDAR", throttle_duration_sec=1)
 
 
-# def bresenham(start, end):
-#     """
-#     Implementation of Bresenham's line drawing algorithm
-#     See en.wikipedia.org/wiki/Bresenham's_line_algorithm
-#     Bresenham's Line Algorithm
-#     Produces a np.array from start and end including.
+def bresenham(start, end):
+    """
+    Implementation of Bresenham's line drawing algorithm
+    See en.wikipedia.org/wiki/Bresenham's_line_algorithm
+    Bresenham's Line Algorithm
+    Produces a np.array from start and end including.
 
-#     (original from roguebasin.com)
-#     >> points1 = bresenham((4, 4), (6, 10))
-#     >> print(points1)
-#     np.array([[4,4], [4,5], [5,6], [5,7], [5,8], [6,9], [6,10]])
-#     """
-#     # setup initial conditions
-#     x1, y1 = start
-#     x2, y2 = end
-#     dx = x2 - x1
-#     dy = y2 - y1
-#     is_steep = abs(dy) > abs(dx)  # determine how steep the line is
-#     if is_steep:  # rotate line
-#         x1, y1 = y1, x1
-#         x2, y2 = y2, x2
-#     # swap start and end points if necessary and store swap state
-#     swapped = False
-#     if x1 > x2:
-#         x1, x2 = x2, x1
-#         y1, y2 = y2, y1
-#         swapped = True
-#     dx = x2 - x1  # recalculate differentials
-#     dy = y2 - y1  # recalculate differentials
-#     error = int(dx / 2.0)  # calculate error
-#     y_step = 1 if y1 < y2 else -1
-#     # iterate over bounding box generating points between start and end
-#     y = y1
-#     points = []
-#     for x in range(x1, x2 + 1):
-#         coord = [y, x] if is_steep else (x, y)
-#         points.append(coord)
-#         error -= abs(dy)
-#         if error < 0:
-#             y += y_step
-#             error += dx
-#     if swapped:  # reverse the list if the coordinates were swapped
-#         points.reverse()
-#     points = np.array(points)
-#     return points
+    (original from roguebasin.com)
+    >> points1 = bresenham((4, 4), (6, 10))
+    >> print(points1)
+    np.array([[4,4], [4,5], [5,6], [5,7], [5,8], [6,9], [6,10]])
+    """
+    # setup initial conditions
+    x1, y1 = start
+    x2, y2 = end
+    dx = x2 - x1
+    dy = y2 - y1
+    is_steep = abs(dy) > abs(dx)  # determine how steep the line is
+    if is_steep:  # rotate line
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+    # swap start and end points if necessary and store swap state
+    swapped = False
+    if x1 > x2:
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
+        swapped = True
+    dx = x2 - x1  # recalculate differentials
+    dy = y2 - y1  # recalculate differentials
+    error = int(dx / 2.0)  # calculate error
+    y_step = 1 if y1 < y2 else -1
+    # iterate over bounding box generating points between start and end
+    y = y1
+    points = []
+    for x in range(x1, x2 + 1):
+        coord = [y, x] if is_steep else (x, y)
+        points.append(coord)
+        error -= abs(dy)
+        if error < 0:
+            y += y_step
+            error += dx
+    if swapped:  # reverse the list if the coordinates were swapped
+        points.reverse()
+    points = np.array(points)
+    return points
 
 
 def main():

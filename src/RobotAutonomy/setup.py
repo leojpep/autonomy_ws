@@ -43,15 +43,15 @@ setup(
     entry_points={
         "console_scripts": [
             "turtle_circles = my_turtlebot.turtle_circles:main",
+            "move_turtlebot = my_turtlebot.move_turtlebot:main",
             "lidar_sub = my_turtlebot.lidar_sub:main",
             "lidar_icp = my_turtlebot.lidar_icp:main",
-            "lidar_icp2 = my_turtlebot.lidar_icp2:main",
-            "move_turtlebot = my_turtlebot.move_turtlebot:main",
+            "lidar_kiss = my_turtlebot.lidar_kiss:main",
             "map_random = my_turtlebot.map_random:main",
+            "map_lidar_static = my_turtlebot.map_lidar_static:main",
             "map_lidar = my_turtlebot.map_lidar:main",
-            "map_lidar2 = my_turtlebot.map_lidar2:main",
-            "map_paul = my_turtlebot.paul_grid_map:main",
             "particle_sub = my_turtlebot.particle_sub:main",
+            "planner_prm = my_turtlebot.planner_prm:main",
         ],
     },
 )
