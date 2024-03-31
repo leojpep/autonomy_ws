@@ -1,8 +1,9 @@
 """
-Script to overlay laser scans LIDAR data produced by a stationary TurtleBot3.
+Script to overlay laser scans LIDAR data produced by a moving TurtleBot3.
 
 - Create an empty 2D map
-- Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
+- Subscribe to the LIDAR topic and apply the robot's odometry to the LIDAR scan
+- Convert the LIDAR scan to Euclidean coordinates
 - Add them to your internal map representation
 - Publish the updated map
 """
@@ -16,14 +17,14 @@ from rclpy.qos import (
     QoSDurabilityPolicy,
 )
 from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import OccupancyGrid, MapMetaData
+from nav_msgs.msg import OccupancyGrid, MapMetaData, Odometry
 
 SUB_NAME = "map_lidar"
 SUB_MSG = LaserScan
 SUB_TOPIC = "/scan"
 
 PUB_MSG = OccupancyGrid
-PUB_TOPIC = "/map2"
+PUB_TOPIC = "/map"
 PUB_FREQ = 0.5
 
 
@@ -44,13 +45,18 @@ class LidarSubscriber(Node):
             depth=1,
         )
 
-        self.subscription = self.create_subscription(
-            SUB_MSG, SUB_TOPIC, self.sub_callback, scan_profile
+        self.scan_sub = self.create_subscription(
+            SUB_MSG, SUB_TOPIC, self.scan_callback, scan_profile
         )
 
-        self.publisher = self.create_publisher(PUB_MSG, PUB_TOPIC, map_profile)
+        self.publisher = self.create_publisher(
+            PUB_MSG, PUB_TOPIC, map_profile
+        )
 
-        self.grid = None
+        self.map_meta = self.get_map_metadata()
+        # Create an empty 2D map
+        self.grid = np.full((self.map_meta.height, self.map_meta.width),
+                            -1, dtype=np.int8)
 
     def convert_scan_to_cloud(self, scan: LaserScan):
         """
@@ -60,7 +66,7 @@ class LidarSubscriber(Node):
             scan (LaserScan): The old LIDAR scan data.
 
         Returns:
-            p (np.array): The point cloud data.
+            p (np.array): The point cloud data, nx2.
         """
         n_scans = len(scan.ranges)  # 360
         ranges = np.array(scan.ranges, np.float32)
@@ -80,88 +86,69 @@ class LidarSubscriber(Node):
         p = np.delete(p, inf_idx, axis=0)
         return p
 
-    def draw_point(self, r, theta, map_meta: MapMetaData):
-        # Draw free points from robot to point
-        if r > 300:
-            return
-        for t in np.arange(0, theta, map_meta.resolution):
-            x = r * np.cos(t)
-            y = r * np.sin(t)
-            grid_x = int(x / map_meta.resolution)
-            grid_y = int(y / map_meta.resolution)
-            self.grid[grid_x, grid_y] = 0
+    def get_map_metadata(self) -> MapMetaData:
+        """
+        Prepare map metadata during initialization.
+        """
+        map_meta = MapMetaData()
+        map_meta.resolution = 0.05  # m / cell
 
-        # Draw obstacle at the end of ray
-        self.grid[grid_x, grid_y] = 100
+        map_height = 15     # in meters
+        map_width = 15      # in meters
+        map_meta.height = int(map_height / map_meta.resolution)
+        map_meta.width = int(map_width / map_meta.resolution)
 
-    def sub_callback(self, scan: LaserScan):
+        # Orientation values were found after trial end error
+        map_meta.origin.orientation.x = 0.7071068
+        map_meta.origin.orientation.y = 0.7071068
+        map_meta.origin.orientation.z = 0.0
+        map_meta.origin.orientation.w = 0.0
+
+        # Position values were found after trial and error
+        map_meta.origin.position.x = -7.5
+        map_meta.origin.position.y = -7.5
+        map_meta.origin.position.z = 0.0
+        return map_meta
+
+    def draw_points(self, p, robot_gridx: int, robot_gridy: int) -> None:
+        """
+        Draw the points on the map.
+
+        Args:
+            p (np.array): The point cloud data with the robot at the center.
+            map_meta (MapMetaData): The map metadata.
+            robot_gridx (int): The robot's grid x position.
+            robot_gridy (int): The robot's grid y position.
+        """
+        for point in p:
+            # Occupied
+            grid_x = int(point[0] / self.map_meta.resolution) + robot_gridx
+            grid_y = int(point[1] / self.map_meta.resolution) + robot_gridy
+            self.grid[grid_x, grid_y] = 100  # occupied
+
+            # Free
+            free_area = bresenham((robot_gridx, robot_gridy), (grid_x, grid_y))
+            for free in free_area[:-1]:  # last element contains obastacle
+                self.grid[free[0], free[1]] = 0
+
+    def scan_callback(self, scan: LaserScan) -> None:
         """
         Process the LIDAR sensor data.
         """
         # Convert the LIDAR scan data to euclidean array
-        p = self.convert_scan_to_cloud(scan)
+        p = self.convert_scan_to_cloud(scan)  # where (0,0) is robot position
 
-        # Prepare map metadata
-        map_meta = MapMetaData()
-        map_meta.height = 100
-        map_meta.width = 100
-        map_meta.resolution = 0.1  # m / cell
-        map_meta.origin.orientation.x = 0.0
-        map_meta.origin.orientation.y = 0.0
-        map_meta.origin.orientation.z = -0.7071068
-        map_meta.origin.orientation.w = 0.7071068
-        map_meta.origin.position.x = 7.0
-        map_meta.origin.position.y = -5.0
-        map_meta.origin.position.z = 0.0
-
-        # Initialise robot position in the map in grid coordinates
-        robot_x = int(map_meta.origin.position.x / map_meta.resolution)
-        robot_y = int(map_meta.origin.position.y / map_meta.resolution)
-        # robot_x = 0
-        # robot_y = 0
-
-        # Initialise grid as unexplored
-        map_size = (map_meta.width, map_meta.height)
-        self.grid = np.full(map_size, -1, dtype=np.int8)  # 2D array
-
-        # Draw points
-        ranges = scan.ranges
-        inc = scan.angle_increment
-        angles = [inc * i for i in range(len(ranges))]
-        for r, a in zip(ranges, angles):
-            self.draw_point(r, a, map_meta)
-
-        # Denote obstacle in a 2D grid
-        for x, y in p:
-            # x,y are in metres
-            # self.get_logger().info(f"Processing point {x}, {y}", once=True)
-
-            # Convert to grid coordinates
-            grid_x = int(x / map_meta.resolution)
-            grid_y = int(y / map_meta.resolution)
-
-            self.get_logger().info(f"({x:3f},{y:3f} -> ({grid_x},{grid_y})", once=True)
-
-            # Mark robot position
-            self.grid[robot_x,  robot_y] = 0
-
-            # Mark free area along the ray
-            free_area = bresenham((robot_x, robot_y), (grid_x, grid_y))
-            for free_x, free_y in free_area:
-                if x < map_meta.width and y < map_meta.height:
-                    self.grid[robot_x+free_x, robot_y+free_y] = 0
-
-            # Mark obstacle at end of ray
-            if grid_x < map_meta.width and grid_y < map_meta.height:
-                self.grid[robot_x + grid_x, robot_y + grid_y] = 100
+        # Assume robot is at the center of the grid map
+        robot_gridx = self.map_meta.width / 2   # robot's initial position
+        robot_gridy = self.map_meta.height / 2
+        self.draw_points(p, int(robot_gridx), int(robot_gridy))
 
         # Publish message
         msg = OccupancyGrid()
-        msg.info = map_meta
+        msg.info = self.map_meta
         msg.data = self.grid.flatten().astype(np.int8).tolist()
         msg.header.frame_id = "map"
         self.publisher.publish(msg)
-        self.get_logger().info("Published map from LIDAR", throttle_duration_sec=1)
 
 
 def bresenham(start, end):

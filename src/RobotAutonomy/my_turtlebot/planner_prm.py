@@ -20,13 +20,14 @@ from rclpy.qos import (
 from skimage.morphology import dilation, disk
 from nav_msgs.msg import OccupancyGrid
 import matplotlib.pyplot as plt
-# from scipy.spatial import KDTree
+from matplotlib.lines import Line2D
+
+np.random.seed(8)
 
 SUB_NAME = "prm"
 SUB_MSG = OccupancyGrid
 SUB_TOPIC = "/map"
 
-# TODO: call add_start_and_goal() with the start and goal positions
 
 class PRM(Node):
     def __init__(self):
@@ -51,14 +52,14 @@ class PRM(Node):
         self.nodes = []
         self.edges = defaultdict(list)
 
-        self.start = None
+        self.start = [50, 30]
         self.start_idx = None
 
-        self.goal = None
+        self.goal = [270, 40]
         self.goal_idx = None
 
     def map_callback(self, msg: SUB_MSG):
-        print("Map received.")
+        print("[PRM] Map received.")
         # Process the received message
         self.map = msg
         self.map_data = msg.data        # contains the original map_data
@@ -73,17 +74,19 @@ class PRM(Node):
 
         # Create the roadmap the first time the map is received
         while not self.nodes:
-            print("Creating roadmap...")
+            print("[PRM] Creating roadmap...")
             self.generate_random_nodes()
             self.connect_k_nearest_neighbors()  # choose either this
             # self.create_k_nearest_edges()     # or this
-            self.plot()
+            self.add_start_and_goal(self.start, self.goal)
+            distances, path = dijkstra(self.edges, self.start_idx, self.goal_idx)
+            self.plot(path)
 
     def generate_random_nodes(self):
         """
         Uniformly generate random nodes in the map space.
         """
-        print("Generating random nodes...")
+        print("[PRM] Generating random nodes...")
         for _ in range(self.num_nodes):
             collides = True
             while collides:
@@ -94,7 +97,6 @@ class PRM(Node):
                 if not self.node_collides_obstacle(node):
                     collides = False
             self.nodes.append(node)
-        print("Random nodes generated.")
         
     def node_collides_obstacle(self, node):
         """
@@ -158,7 +160,7 @@ class PRM(Node):
             nodes (List[Tuple[float, float]]): List of the nodes positions
             k (int): Number of nearest nodes to connect to
         """
-        print("Creating edges...")
+        print("[PRM] Creating edges...")
         for i, node1 in enumerate(self.nodes):
             k_nearest = self.sorted_neighbors(node1)[:self.num_neighbors]
             for _, neighbor_idx in k_nearest:
@@ -174,7 +176,7 @@ class PRM(Node):
         """
         Create k edges between the nearest neighbors with obstacle free paths.
         """
-        print("Creating edges...")
+        print("[PRM] Creating edges...")
         node_neighbors = defaultdict(list)
         for i, node1 in enumerate(self.nodes):
             sorted_neighbors = self.sorted_neighbors(node1)
@@ -193,13 +195,21 @@ class PRM(Node):
 
 
     def add_start_and_goal(self, start, goal):
+        """
+        Add start and goal points to the roadmap.
+
+        Args:
+            start (Tuple[float, float]): Start position
+            goal (Tuple[float, float]): Goal position
+        """
+        print("[PRM] Adding start and goal nodes...")
         if self.node_collides_obstacle(start):
             raise ValueError("Start node collides with an obstacle.")
         if self.node_collides_obstacle(goal):
             raise ValueError("Goal node collides with an obstacle.")
         
         # Set start and goal positions, and add them to the nodes
-        self.start, self.goal = start, goal
+        # self.start, self.goal = start, goal
 
         self.start_idx = len(self.nodes)
         self.nodes.append(start)
@@ -214,10 +224,7 @@ class PRM(Node):
         goal_neighbour_idx = neighbours[self.goal_idx][0]
         start_neighbour_idx = neighbours[self.start_idx][0]
 
-        goal_neighbour = self.nodes[goal_neighbour_idx]
-        start_neighbour = self.nodes[start_neighbour_idx]
-
-        # computed distances
+        # Compute distances
         d_goal = self.weight
         d_start = self.weight
 
@@ -228,7 +235,7 @@ class PRM(Node):
     
     def dilate_map(self, map_data, clearance):
         """
-        Dilate the map to provide path clearance.
+        Dilate the obstacles on the map to replicate path clearance.
 
         Args:
             map_data (List[int]): The map data representing obstacles.
@@ -246,40 +253,64 @@ class PRM(Node):
         # Convert the dilated map back to a 1D array 
         self.dilated_map = dilated_map.ravel().tolist()
 
-    def plot(self):
-        print("Plotting...")
-        plt.figure(dpi=150)
+    def plot(self, path=None):
+        print("[PRM] Plotting...")
+        plt.figure(dpi=120)
+        
         # Plot edges
         for node_idx, edges in self.edges.items():
             for edge in edges:
                 node1 = self.nodes[node_idx]
                 node2 = self.nodes[edge[0]]
-                plt.plot([node1[0], node2[0]], [node1[1], node2[1]], "b-")
+                plt.plot([node1[0], node2[0]], [node1[1], node2[1]], "b-", label="edges")
+
+        # Plot path
+        if path:
+            for i in range(len(path)-1):
+                node1 = self.nodes[path[i]]
+                node2 = self.nodes[path[i+1]]
+                plt.plot([node1[0], node2[0]], [node1[1], node2[1]], "r-", linewidth=2)
+
         # Plot nodes
         for i, node in enumerate(self.nodes):
             plt.plot(node[0], node[1], "ro", markersize=3)
             # plt.text(node[0], node[1], str(i), ha='center', va='center')  # index
-        # Plot clearance
+        
+        # Plot clearance (takes a while)
         for i,value in enumerate(self.dilated_map):
             if value > 0:
                 x = i % self.map_width
                 y = i // self.map_width
                 plt.plot(x, y, color='yellow', marker='o', markersize=1)
+        
         # Plot obstacles
         for i,value in enumerate(self.map_data):
             if value > 0:
                 x = i % self.map_width
                 y = i // self.map_width
                 plt.plot(x, y, color='black', marker='o', markersize=1)
+        
+        # Plot start and goal
+        plt.plot(self.start[0], self.start[1], color='green', marker='o', markersize=2)
+        plt.plot(self.goal[0], self.goal[1], color='#fca103', marker='o', markersize=2)
+        
+        # Prepare custom legend
+        lg_handles = [
+                    Line2D([0], [0], color='black', marker='o', markersize=10, label='Obstacles'),
+                    Line2D([0], [0], color='yellow', marker='o', markersize=10, label='Clearance'),
+                    Line2D([0], [0], color='red', marker='o', markersize=10, label='Nodes'),
+                    Line2D([0], [0], color='green', marker='o', markersize=10, label='Start'),
+                    Line2D([0], [0], color='#fca103', marker='o', markersize=10, label='Goal'),
+                    Line2D([0], [0], color='blue', label='Edges'),
+                    Line2D([0], [0], color='red', linewidth=2, label='Path'),
+                    ]
+        # plt.legend(loc="upper right", handles=lg_handles, bbox_to_anchor=(1.4, 1.))
+        # TODO: i can't get the legend to be displayed nicely on the side without affecting the grid
 
-        if self.goal:
-            plt.plot(self.goal[0], self.goal[1], "yo")
-        if self.start:
-            plt.plot(self.start[0], self.start[1], "go")
-
-        plt.title(f"Probabilistic Roadmap with {len(self.nodes)} nodes, k={self.num_neighbors} neighbors")
+        plt.title(f"Probabilistic Roadmap, n={len(self.nodes)} nodes, k={self.num_neighbors} neighbors")
         plt.xlabel("X")
         plt.ylabel("Y")
+        # plt.tight_layout()
         plt.grid(True)
         plt.show()
         print("Plotting done.")
@@ -330,6 +361,79 @@ def bresenham(start, end):
         points.reverse()
     points = np.array(points)
     return points
+
+
+def dijkstra(edges, start_idx, goal_idx):
+    '''
+    Use dijkstra algorithm to find the shortest path from start to goal.
+
+    Args:
+        edges (dict): dictionary where the key-value pairs are:  node_idx: [(neighbor_idx, distance), ...]
+        start_idx (int): index of the start node
+        goal_idx (int): index of the goal node
+
+    Returns:
+        dict: dictionary where the key-value pairs are:  node_idx: distance
+        path: list of the node indexes in the shortest path
+    '''
+    print(f"[Dijkstra] Finding path from {start_idx} to {goal_idx} using Dijkstra algorithm.")
+
+    class Node:
+        def __init__(self, idx):
+            self.idx = idx
+            self.parent = None
+
+    # Initialize the distance to all nodes to be infinity
+    distances = {}
+    nodes = {}
+    for node in edges:
+        distances[node] = float("inf")
+        nodes[node] = Node(node)
+
+    # Initialize start node
+    distances[start_idx] = 0
+    nodes[start_idx].parent = start_idx
+
+    queue = [(start_idx, 0)]  # priority queue: store nodes and their distances
+    visited = set()           # store visited nodes
+
+    # Iterate through the queue
+    while queue:
+        current_node, current_distance = queue.pop(0)
+
+        if current_node in visited:
+            continue
+
+        # Check if the current node is the goal node
+        if current_node == goal_idx:
+            print(f"[Dijkstra] Visited {len(visited)} nodes")
+            print(f"[Dijkstra] Goal node {goal_idx} found with distance {current_distance}")
+
+            # Reconstruct the path
+            path = []
+            while current_node != start_idx:
+                path.append(current_node)
+                current_node = nodes[current_node].parent
+            path.append(start_idx)
+            path.reverse()
+            print(f"[Dijkstra] Path: {path}")
+            break
+
+        # Explore the neighbors of the current node
+        for neighbor, distance in edges[current_node]:
+            # Relax the current node if a lower distance estimate is found
+            new_estimate = current_distance + distance
+            if new_estimate < distances[neighbor]:
+                distances[neighbor] = new_estimate
+                nodes[neighbor].parent = current_node
+            queue.append((neighbor, distances[neighbor]))
+
+        visited.add(current_node)
+
+        # Sort the queue based on the distances
+        queue.sort(key=lambda x: x[1])
+    
+    return distances, path
 
 
 def main():   

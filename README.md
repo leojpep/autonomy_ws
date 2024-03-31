@@ -2,6 +2,8 @@
 
 Notes and commands taken from lectures and exercises.
 
+**Table of Contents**
+
 <!-- toc -->
 
 - [Set up VNC Container](#set-up-vnc-container)
@@ -24,6 +26,8 @@ Notes and commands taken from lectures and exercises.
   - [ros workspace](#ros-workspace)
 
 <!-- tocstop -->
+
+**Exercise Log**
 
 - Week 2
   - [x] ROS tutorial with turtlesim actions & services
@@ -66,17 +70,9 @@ pip install setuptools_scm == 6.0
 pip install setuptools == 58.2
 ```
 
-For exercises with turtlebot, run the `.sh` file to set up the environment.
+For exercises with turtlebot, run these commands to set up the simulation environment.
 
 ```bash
-cd autonomy_ws
-bash setup_env.sh
-```
-
-which contains
-
-```bash
-# In every new terminal, paste the following commands
 cd autonomy_ws
 source install/setup.bash
 export ROS_DOMAIN_ID=11
@@ -216,7 +212,7 @@ ros2 launch my_turtlebot turtlebot_simulation.launch.py
 # click on the robot and drag  towards +x (red line)
 
 # In another terminal,
-ros2 run my_turtlebot map_lidar 
+ros2 run my_turtlebot map_lidar_static
 ```
 
 ![RVIZ screenshot of lidar map](assets/media/map_lidar.png)
@@ -328,14 +324,14 @@ ros2 run my_turtlebot planner_prm
 ```
 
 > [!NOTE]
-> Old Approach
-> Find K-nearest neighbours, create edge if the path is collision-free. This results in each node having at most K edges created, but usually having less than K.
-> New Approach
+> **Old Approach** <br>
+> Find K-nearest neighbours, create edge if the path is collision-free. This results in each node having at most K edges created, but usually having less than K. <br>
+> **New Approach** <br>
 > Add K shortest edges that are collision free. This ensures that more nodes have K edges created, but the edges will not be to the K-nearest neighbours
 
-![Screenshot of PRM generated](assets/media/planner_prm3.png)
-
 ![Screenshot of PRM generated](assets/media/planner_prm4.png)
+
+![Screenshot of PRM generated](assets/media/planner_prm_path.png)
 
 **Task 2**: Query the plan from the previous exercise.
 
