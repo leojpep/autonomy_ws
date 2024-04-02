@@ -182,7 +182,7 @@ class LidarSubscriber(Node):
         n_free = np.sum(self.grid == 0)
         n_unknown = np.sum(self.grid == -1)
         n_total = self.grid.shape[0] * self.grid.shape[1]
-        log_str = f"\nOccupied: {n_occupied}, {n_occupied/n_total:.3f}%"
+        log_str = f"{throttle_duration}s throttle \nOccupied: {n_occupied}, {n_occupied/n_total:.3f}%"
         log_str += f"\nFree: {n_free}, {n_free/n_total:.3f}%"
         log_str += f"\nUnknown: {n_unknown}, {n_unknown/n_total:.3f}%"
         self.get_logger().info(

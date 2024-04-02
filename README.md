@@ -15,6 +15,7 @@ Notes and commands taken from lectures and exercises.
   - [Week 6 Exercise](#week-6-exercise)
   - [Week 7 Exercise](#week-7-exercise)
   - [Week 8 Exercise](#week-8-exercise)
+  - [Week 9 Exercise](#week-9-exercise)
 - [ROS2 Concepts](#ros2-concepts)
   - [ros nodes](#ros-nodes)
   - [ros topics](#ros-topics)
@@ -29,27 +30,31 @@ Notes and commands taken from lectures and exercises.
 
 **Exercise Log**
 
-- Week 2
+- Week 2 Intro to ROS2
   - [x] ROS tutorial with turtlesim actions & services
-- Week 3
+- Week 3 More on ROS2
   - [x] Spawn 10 turtles moving in circles
   - [x] Subscribe to LIDAR in turtlebot
   - [x] Make turtle2 follow turtle1 using tf2 broadcaster
-- Week 4
+- Week 4 Localization
   - [x] ICP with stationary robot
   - [ ] KISS ICP with constant velocity model
-- Week 5
+- Week 5 Mapping
   - [x] Publish a map with random rectangle obstacles
   - [x] Create 2D map from LIDAR on a stationary robot
   - [x] Create 2D map from LIDAR on a moving robot
-- Week 6
+- Week 6 Localization wrt maps
   - [ ] Implement your own particle filter
-- Week 7
+- Week 7 SLAM
   - [x] Create map using SLAM
-- Week 8
+- Week 8 Navigation
   - [x] Implement Dijkstra in Notebook
   - [x] Implement Probabilistic Roadmap (PRM) in ROS
   - [x] Query the PRM with to get path from start to end
+- Week 9 Exploration
+  - [x] Build PRM of partial map
+  - [x] Compute information gain for each node in PRM
+  - [x] Execute path with the highest information gain
 
 ## Set up VNC Container
 
@@ -68,6 +73,10 @@ If there are errors encountered during `colcon build`, I think it requires the f
 ```bash
 pip install setuptools_scm == 6.0
 pip install setuptools == 58.2
+```
+
+```bash
+sudo apt install ros-$ROS_DISTRO-nav2-bringup ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-turtlebot3-gazebo ros-$ROS_DISTRO-turtlebot3*
 ```
 
 For exercises with turtlebot, run these commands to set up the simulation environment.
@@ -102,7 +111,7 @@ ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{the
 
 ### Week 3 Exercise
 
-**Task 1:** ROS node to spawn 10 turtles and move them in circles. (see `turtle_circles.py`)
+**Task 1:** ROS node to spawn 10 turtles and move them in circles. (see [`turtle_circles.py`](src/RobotAutonomy/my_turtlebot/turtle_circles.py))
 
 ```bash
 ros2 run turtlesim turtlesim_node
@@ -113,18 +122,10 @@ ros2 run my_turtlebot turtle_circles
 
 ![Spawning turtles terminal](assets/media/turtlesim_circles_terminal.png)
 
-**Task 2:** Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan. (see `lidar_sub.py`)
+**Task 2:** Launch burger turtlebot simulation, use RVIZ, obtain LIDAR scan. (see [`lidar_sub.py`](src/RobotAutonomy/my_turtlebot/lidar_sub.py))
+
 
 ```bash
-sudo apt install ros-$ROS_DISTRO-nav2-bringup ros-$ROS_DISTRO-navigation2 ros-$ROS_DISTRO-turtlebot3-gazebo ros-$ROS_DISTRO-turtlebot3*
-
-cd autonomy_ws
-source install/setup.bash
-export ROS_DOMAIN_ID=11
-export TURTLEBOT3_MODEL=burger
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:`ros2 pkg prefix my_turtlebot`/share/my_turtlebot/models
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$(ros2 pkg prefix turtlebot3_gazebo)/share/turtlebot3_gazebo/models
-
 ros2 launch my_turtlebot turtlebot_simulation.launch.py
 # In RViz, select '2D Pose Estimate', 
 # click on the robot and drag  towards +x (red line)
@@ -180,7 +181,7 @@ ros2 launch my_turtlebot turtlebot_localization.launch.py
 
 ### Week 5 Exercise
 
-**Task 1:** Publishing a map (see `map_random.py`)
+**Task 1:** Publishing a map (see [`map_random.py`](src/RobotAutonomy/my_turtlebot/map_random.py))
 
 - Create a 2D occupancy grid using a 2D matrix
 - Fill random cells in the matrix with the value 100 and the rest with 0
@@ -198,7 +199,7 @@ ros2 run my_turtlebot map_random
 
 ![RVIZ screenshot of random map](assets/media/map_random.gif)
 
-**Task 2:** Overlaying laser scans (see `map_lidar_static.py`)
+**Task 2:** Overlaying laser scans (see [`map_lidar_static.py`](src/RobotAutonomy/my_turtlebot/map_lidar_static.py))
 
 - Create an empty 2D map
 - Subscribe to the LIDAR topic and convert the LIDAR scan to Euclidean coordinates
@@ -297,6 +298,10 @@ ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonom
 - 2 files `map.pgm` and `map.yaml` will be generated. Put them in the map directory of the
 my_turtlebot package and launch the simulation again without the slam argument
 
+GIF below is sped up 4x.
+
+![slam](assets/media/slam.gif)
+
 **Task 2**: Use the odometry topic provided by the simulation to accumulate a map (if you don’t already have
 your own localization/odometry)
 
@@ -308,7 +313,7 @@ your own localization/odometry)
 
 ### Week 8 Exercise
 
-**Task 1**: Implement a probailistic roadmap method.
+**Task 1**: Implement a probailistic roadmap method. (see [`planner_prm.py`](src/RobotAutonomy/my_turtlebot/planner_prm.py))
 
 - In ROS2, subscribe to the map topic and use that map for collision checks.
 - Assume constant cost value for all nodes.
@@ -337,6 +342,37 @@ ros2 run my_turtlebot planner_prm
 - Create a function that takes as input a start, goal, and a graph, and returns a list of nodes on the queried path.
 
 ![Screenshot of PRM generated](assets/media/planner_prm_path.png)
+
+### Week 9 Exercise
+
+Next-best-view exploration (see [`explore_nbv.py`](src/RobotAutonomy/my_turtlebot/explore_nbv.py))
+
+```bash
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose '{pose: {header: {frame_id: "map"}, pose: {position: {x: 0.0, y: 0.0, z:0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}'
+```
+
+```bash
+ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonomy_ws/src/RobotAutonomy/maps/sparse_map.yaml
+
+ros2 run my_turtlebot map_lidar
+
+ros2 launch my_turtlebot turtlebot_simulation.launch.py slam:=True
+
+ros2 run turtlebot3_teleop teleop_keyboard
+
+ros2 run my_turtlebot explore_nbv
+```
+
+| blue: known free cells | gray: unknown cells |
+| -- | -- |
+|![node1](assets/media/nbv_node1.png) | ![node2](assets/media/nbv_node2.png) |
+|![node3](assets/media/nbv_node3.png)|![node4](assets/media/nbv_node4.png)|
+|![node5](assets/media/nbv_node5.png)| |
+
+Question:
+
+- when I load the partial map, it is being read as binary with {0,100} instead of trinary. how do I avoid this?
+- why does it make more sense when I set the max range to be $3.5 \div 2$ m? Is the max range half of that?
 
 ## ROS2 Concepts
 

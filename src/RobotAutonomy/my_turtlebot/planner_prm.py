@@ -277,18 +277,20 @@ class PRM(Node):
             # plt.text(node[0], node[1], str(i), ha='center', va='center')  # index
         
         # Plot clearance (takes a while)
+        x_list, y_list = [], []
         for i,value in enumerate(self.dilated_map):
             if value > 0:
-                x = i % self.map_width
-                y = i // self.map_width
-                plt.plot(x, y, color='yellow', marker='o', markersize=1)
-        
+                x_list.append(i % self.map_width)
+                y_list.append(i // self.map_width)
+        plt.scatter(x_list, y_list, color='yellow', s=1)
+
         # Plot obstacles
+        x_list, y_list = [], []
         for i,value in enumerate(self.map_data):
             if value > 0:
-                x = i % self.map_width
-                y = i // self.map_width
-                plt.plot(x, y, color='black', marker='o', markersize=1)
+                x_list.append(i % self.map_width)
+                y_list.append(i // self.map_width)
+        plt.scatter(x_list, y_list, color='black', s=1)
         
         # Plot start and goal
         plt.plot(self.start[0], self.start[1], color='green', marker='o', markersize=2)
@@ -312,6 +314,7 @@ class PRM(Node):
         plt.ylabel("Y")
         # plt.tight_layout()
         plt.grid(True)
+        plt.axis('scaled')
         plt.show()
         print("Plotting done.")
 
