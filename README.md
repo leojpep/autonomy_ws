@@ -348,15 +348,16 @@ ros2 run my_turtlebot planner_prm
 Next-best-view exploration (see [`explore_nbv.py`](src/RobotAutonomy/my_turtlebot/explore_nbv.py))
 
 ```bash
+# Ignore these when running scripts
 ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose '{pose: {header: {frame_id: "map"}, pose: {position: {x: 0.0, y: 0.0, z:0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}'
+
+ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonomy_ws/src/RobotAutonomy/maps/sparse_map.yaml
 ```
 
 ```bash
-ros2 launch my_turtlebot turtlebot_simulation.launch.py map:=/home/yufan/autonomy_ws/src/RobotAutonomy/maps/sparse_map.yaml
+ros2 launch my_turtlebot turtlebot_simulation.launch.py slam:=True
 
 ros2 run my_turtlebot map_lidar
-
-ros2 launch my_turtlebot turtlebot_simulation.launch.py slam:=True
 
 ros2 run turtlebot3_teleop teleop_keyboard
 
@@ -368,6 +369,10 @@ ros2 run my_turtlebot explore_nbv
 |![node1](assets/media/nbv_node1.png) | ![node2](assets/media/nbv_node2.png) |
 |![node3](assets/media/nbv_node3.png)|![node4](assets/media/nbv_node4.png)|
 |![node5](assets/media/nbv_node5.png)| |
+
+![all info gain](assets/media/nbv_visibility.png)
+
+![all info gain RVIZ](assets/media/nbv_visibility_rviz.png)
 
 Question:
 

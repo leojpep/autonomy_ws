@@ -53,6 +53,7 @@ setup(
             "particle_sub = my_turtlebot.particle_sub:main",
             "planner_prm = my_turtlebot.planner_prm:main",
             "explore_nbv = my_turtlebot.explore_nbv:main",
+            "report_nbv = my_turtlebot.report_nbv:main",
         ],
     },
 )
