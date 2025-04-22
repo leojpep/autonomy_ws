@@ -96,7 +96,7 @@ Run teleoperation node for turtlebot.
 ros2 run turtlebot3_teleop teleop_keyboard
 ```
 
-### Week 2 Exercise
+### Week 2: Introduction to ROS2
 
 ```bash
 ros2 run turtlesim turtlesim_node
@@ -109,7 +109,7 @@ ros2 bag play bag1
 ros2 action send_goal /T63/rotate_absolute turtlesim/action/RotateAbsolute "{theta: 0.5}"
 ```
 
-### Week 3 Exercise
+### Week 3: More on ROS2
 
 **Task 1:** ROS node to spawn 10 turtles and move them in circles. (see [`turtle_circles.py`](src/RobotAutonomy/my_turtlebot/turtle_circles.py))
 
@@ -157,7 +157,7 @@ ros2 run tf_broadcaster broadcaster turtle2
 ros2 run tf_broadcaster listener turtle1 turtle2
 ```
 
-### Week 4 Exercise
+### Week 4: Localization
 
 **Task 1:** Create a localization ROS node for your turtlebot (not complete)
 
@@ -179,7 +179,7 @@ ros2 run my_turtlebot lidar_icp --ros-args --log-level debug
 ros2 launch my_turtlebot turtlebot_localization.launch.py
 ```
 
-### Week 5 Exercise
+### Week 5: Mapping
 
 **Task 1:** Publishing a map (see [`map_random.py`](src/RobotAutonomy/my_turtlebot/map_random.py))
 
@@ -222,7 +222,7 @@ ros2 run my_turtlebot map_lidar_static
 
 - Use the odometry you developed last time to move the pointcloud as the robot moves
 
-### Week 6 Exercise
+### Week 6: Localization wrt map
 
 **Task 1:** Using your own localization and accumulate a map when you drive around in the environment (see `map_lidar.py`)
 
@@ -267,8 +267,8 @@ ros2 run my_turtlebot particle_sub
 - For each particle compute the error for each feature
 - Update your importance weights based on the error
 
-### Week 7 Exercise
 
+### Week 7: SLAM
 **Task 1**: Create your own map in the simulation using SLAM
 
 - This task follows [this tutorial](https://ros2-industrial-workshop.readthedocs.io/en/latest/_source/navigation/ROS2-Cartographer.html)
@@ -311,7 +311,7 @@ your own localization/odometry)
 
 - Using your own localization, accumulate a map when you drive around in the environment
 
-### Week 8 Exercise
+### Week 8: Navigation
 
 **Task 1**: Implement a probailistic roadmap method. (see [`planner_prm.py`](src/RobotAutonomy/my_turtlebot/planner_prm.py))
 
@@ -343,7 +343,7 @@ ros2 run my_turtlebot planner_prm
 
 ![Screenshot of PRM generated](assets/media/planner_prm_path.png)
 
-### Week 9 Exercise
+### Week 9: Exploration
 
 Next-best-view exploration (see [`explore_nbv.py`](src/RobotAutonomy/my_turtlebot/explore_nbv.py))
 
